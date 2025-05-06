@@ -1,58 +1,46 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
+# dependencies
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
-# Testing
+# testing
 /coverage
 
-# Next.js build files
+# next.js
 /.next/
 /out/
 
-# Build Package
-/dist
-
-# Production
+# production
 /build
 
-# Misc
+# misc
 .DS_Store
 *.pem
 
-# Debug files
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-*.env*.local
+.pnpm-debug.log*
 
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# local env files
+.env*.local
+.env
 
-# Firebase Emulator
-firebase-debug.log*
-*.pid
-*.log
-firestore-debug.log
-database-debug.log
-pubsub-debug.log
-storage-debug.log
-ui-debug.log
+# vercel
+.vercel
 
-# Firebase Hosting cache
-.firebase
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
-# Genkit state
-.genkit/dev-plugins-state.json
-.genkit/prod-plugins-state.json
+# studio generated files
+components.json
+src/ai/dev.js
+src/ai/genkit.js
 
-# Dotenv environment variables file
-.env.local
+# Patch package
+patches/
