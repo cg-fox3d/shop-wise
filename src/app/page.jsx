@@ -1,66 +1,149 @@
-import ProductCard from '@/components/ProductCard';
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
+import CategorySection from '@/components/CategorySection';
+import SearchBar from '@/components/SearchBar'; // Added SearchBar
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from 'next/navigation'; 
+import { useAuth } from '@/contexts/AuthContext'; 
+import LoginModal from '@/components/LoginModal'; 
+import { useCart } from '@/contexts/CartContext'; 
+import { useFavorites } from '@/contexts/FavoritesContext'; // Added useFavorites
+
+// Helper to generate a future date for countdown
+const getFutureDate = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+};
 
 // Sample product data (replace with actual data fetching later)
-const products = [
-  {
-    id: 'prod_1',
-    name: 'Classic Tee',
-    description: 'A comfortable and stylish classic t-shirt made from 100% cotton.',
-    price: 25.00,
-    imageUrl: 'https://picsum.photos/seed/tee/400/400',
-    imageHint: 'tshirt clothing',
-  },
-  {
-    id: 'prod_2',
-    name: 'Denim Jeans',
-    description: 'High-quality denim jeans with a modern slim fit.',
-    price: 60.00,
-    imageUrl: 'https://picsum.photos/seed/jeans/400/400',
-    imageHint: 'jeans pants',
-  },
-  {
-    id: 'prod_3',
-    name: 'Running Shoes',
-    description: 'Lightweight and breathable running shoes for maximum comfort.',
-    price: 85.00,
-    imageUrl: 'https://picsum.photos/seed/shoes/400/400',
-    imageHint: 'shoes sneakers',
-  },
-  {
-    id: 'prod_4',
-    name: 'Leather Wallet',
-    description: 'A classic bifold wallet made from genuine leather.',
-    price: 40.00,
-    imageUrl: 'https://picsum.photos/seed/wallet/400/400',
-    imageHint: 'wallet accessory',
-  },
-    {
-    id: 'prod_5',
-    name: 'Sunglasses',
-    description: 'Stylish sunglasses with UV protection.',
-    price: 50.00,
-    imageUrl: 'https://picsum.photos/seed/sunglasses/400/400',
-    imageHint: 'sunglasses accessory',
-  },
-    {
-    id: 'prod_6',
-    name: 'Backpack',
-    description: 'Durable and spacious backpack for everyday use.',
-    price: 70.00,
-    imageUrl: 'https://picsum.photos/seed/backpack/400/400',
-    imageHint: 'backpack bag',
-  },
-];
+const sampleVipNumbers = {
+  endingWith786: [
+    { id: 'vip1', number: '9090507860', price: 3999, originalPrice: 5299, totalDigits: 10, sumOfDigits: 4, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(1), imageHint: "vip number" },
+    { id: 'vip2', number: '8888887861', price: 4999, originalPrice: 6299, totalDigits: 10, sumOfDigits: 5, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(2), imageHint: "mobile number" },
+    { id: 'vip3', number: '9123457862', price: 2999, originalPrice: 4299, totalDigits: 10, sumOfDigits: 6, isVip: false, discount: 1300, expiryTimestamp: getFutureDate(0.5), imageHint: "sim card" },
+  ],
+  doubleNumbers: [
+    { id: 'vip4', number: '9988776655', price: 1999, originalPrice: 3299, totalDigits: 10, sumOfDigits: 8, isVip: false, discount: 1300, expiryTimestamp: getFutureDate(3), imageHint: "fancy number" },
+    { id: 'vip5', number: '7777112233', price: 2499, originalPrice: 3799, totalDigits: 10, sumOfDigits: 1, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(1.5), imageHint: "special number" },
+  ],
+  topChoice: [
+    { id: 'vip6', number: '9000000001', price: 9999, originalPrice: 11299, totalDigits: 10, sumOfDigits: 1, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(5), imageHint: "premium number" },
+    { id: 'vip7', number: '8000000008', price: 8999, originalPrice: 10299, totalDigits: 10, sumOfDigits: 8, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(0.2), imageHint: "exclusive number" },
+    { id: 'vip8', number: '7770001111', price: 7999, originalPrice: 9299, totalDigits: 10, sumOfDigits: 7, isVip: false, discount: 1300, expiryTimestamp: getFutureDate(4), imageHint: "collection number" },
+  ],
+};
+
 
 export default function Home() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const { toast } = useToast();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { addToCart: addProductToCart, cartItems } = useCart();
+  const { toggleFavorite, isFavorite } = useFavorites(); // Used FavoritesContext
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); 
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCategories([
+        { title: "Ending with 786", items: sampleVipNumbers.endingWith786 },
+        { title: "Double Numbers", items: sampleVipNumbers.doubleNumbers },
+        { title: "Our Top Choice", items: sampleVipNumbers.topChoice },
+      ]);
+      setIsLoading(false);
+    }, 1500); 
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsLoginModalOpen(false);
+    toast({ title: "Login Successful" });
+    if (pendingAction) {
+      pendingAction.action(pendingAction.item);
+      setPendingAction(null);
+    }
+  };
+  
+  const executeOrPromptLogin = (action, item) => {
+    if (!user) {
+      setPendingAction({ action, item });
+      setIsLoginModalOpen(true);
+    } else {
+      action(item);
+    }
+  };
+
+  const handleBookNow = useCallback((item) => {
+    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
+    if (!isInCart) {
+      addProductToCart(item); 
+       toast({
+        title: "Added to Cart",
+        description: `${item.number} has been added to your cart.`,
+      });
+    }
+    router.push('/checkout');
+  }, [addProductToCart, router, toast, cartItems]);
+
+  const handleAddToCart = useCallback((item) => {
+    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
+    if (isInCart) {
+      toast({
+        title: "Already in Cart",
+        description: `${item.number} is already in your cart.`,
+      });
+      return;
+    }
+    addProductToCart(item);
+    toast({
+      title: "Added to Cart",
+      description: `${item.number} has been added to your cart.`,
+    });
+  }, [addProductToCart, toast, cartItems]);
+
+
+  const handleToggleFavorite = useCallback((item) => {
+    toggleFavorite(item);
+    toast({ title: isFavorite(item.id) ? "Removed from Favorites" : "Added to Favorites" });
+  }, [toggleFavorite, isFavorite, toast]);
+
+
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8">Featured Products</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+      <h1 className="text-3xl font-bold mb-2">Discover Your VIP Number</h1>
+      <p className="text-muted-foreground mb-6">
+        Choose from a wide range of exclusive and fancy mobile numbers.
+      </p>
+
+      <SearchBar /> 
+      
+      <div className="mt-8"> {/* Added margin top for spacing */}
+        {categories.map((category, index) => (
+          <CategorySection
+            key={index}
+            title={category.title}
+            items={category.items}
+            isLoading={isLoading}
+            onBookNow={(item) => executeOrPromptLogin(handleBookNow, item)}
+            onAddToCart={(item) => executeOrPromptLogin(handleAddToCart, item)}
+            onToggleFavorite={handleToggleFavorite} // Pass the item object
+            isFavorite={(itemId) => isFavorite(itemId)} // Pass isFavorite function
+          />
         ))}
       </div>
+      
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => {
+          setIsLoginModalOpen(false);
+          setPendingAction(null); 
+        }} 
+        onLoginSuccess={handleLoginSuccess} 
+      />
     </div>
   );
 }

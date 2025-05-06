@@ -2,17 +2,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, User, LogOut, LogIn } from 'lucide-react';
+import { ShoppingCart, User, LogOut, LogIn, Heart } from 'lucide-react'; // Added Heart
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/contexts/FavoritesContext'; // Added
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import CartSheetContent from './CartSheetContent';
+import FavoritesSheetContent from './FavoritesSheetContent'; // Added
 import LoginModal from './LoginModal';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,9 +30,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Header() {
   const { getItemCount } = useCart();
+  const { getFavoritesCount } = useFavorites(); // Added
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const itemCount = getItemCount();
+  const favoritesCount = getFavoritesCount(); // Added
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -75,7 +79,24 @@ export default function Header() {
             </Link>
             {/* Add other navigation links here if needed */}
           </nav>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2"> {/* Reduced space for more icons */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Heart className="h-5 w-5" />
+                  {favoritesCount > 0 && (
+                    <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center rounded-full p-0">
+                      {favoritesCount}
+                    </Badge>
+                  )}
+                  <span className="sr-only">Open Favorites</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
+                <FavoritesSheetContent />
+              </SheetContent>
+            </Sheet>
+
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -113,10 +134,6 @@ export default function Header() {
                      </div>
                    </DropdownMenuLabel>
                    <DropdownMenuSeparator />
-                   {/* Add profile/settings links if needed */}
-                   {/* <DropdownMenuItem>Profile</DropdownMenuItem>
-                   <DropdownMenuItem>Settings</DropdownMenuItem>
-                   <DropdownMenuSeparator /> */}
                    <DropdownMenuItem onClick={handleLogout}>
                      <LogOut className="mr-2 h-4 w-4" />
                      <span>Log out</span>
