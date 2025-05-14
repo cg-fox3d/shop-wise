@@ -1,13 +1,14 @@
+
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import CategorySection from '@/components/CategorySection';
-import SearchBar from '@/components/SearchBar'; // Added SearchBar
+import SearchBar from '@/components/SearchBar';
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from 'next/navigation'; 
-import { useAuth } from '@/contexts/AuthContext'; 
-import LoginModal from '@/components/LoginModal'; 
-import { useCart } from '@/contexts/CartContext'; 
-import { useFavorites } from '@/contexts/FavoritesContext'; // Added useFavorites
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import LoginModal from '@/components/LoginModal';
+import { useCart } from '@/contexts/CartContext';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 // Helper to generate a future date for countdown
 const getFutureDate = (days) => {
@@ -17,7 +18,8 @@ const getFutureDate = (days) => {
 };
 
 // Sample product data (replace with actual data fetching later)
-const sampleVipNumbers = {
+// Exporting this to be used by the category page as well
+export const sampleVipNumbers = {
   endingWith786: [
     { id: 'vip1', number: '9090507860', price: 3999, originalPrice: 5299, totalDigits: 10, sumOfDigits: 4, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(1), imageHint: "vip number" },
     { id: 'vip2', number: '8888887861', price: 4999, originalPrice: 6299, totalDigits: 10, sumOfDigits: 5, isVip: true, discount: 1300, expiryTimestamp: getFutureDate(2), imageHint: "mobile number" },
@@ -34,6 +36,12 @@ const sampleVipNumbers = {
   ],
 };
 
+export const initialCategoryDefinitions = [
+  { title: "Ending with 786", slug: "ending-with-786", itemsKey: 'endingWith786' },
+  { title: "Double Numbers", slug: "double-numbers", itemsKey: 'doubleNumbers' },
+  { title: "Our Top Choice", slug: "our-top-choice", itemsKey: 'topChoice' },
+];
+
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -42,20 +50,21 @@ export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const { addToCart: addProductToCart, cartItems } = useCart();
-  const { toggleFavorite, isFavorite } = useFavorites(); // Used FavoritesContext
+  const { toggleFavorite, isFavorite } = useFavorites();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); 
+  const [pendingAction, setPendingAction] = useState(null);
 
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setCategories([
-        { title: "Ending with 786", items: sampleVipNumbers.endingWith786 },
-        { title: "Double Numbers", items: sampleVipNumbers.doubleNumbers },
-        { title: "Our Top Choice", items: sampleVipNumbers.topChoice },
-      ]);
+      setCategories(
+        initialCategoryDefinitions.map(cat => ({
+          ...cat,
+          items: sampleVipNumbers[cat.itemsKey] || []
+        }))
+      );
       setIsLoading(false);
-    }, 1500); 
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -67,7 +76,7 @@ export default function Home() {
       setPendingAction(null);
     }
   };
-  
+
   const executeOrPromptLogin = (action, item) => {
     if (!user) {
       setPendingAction({ action, item });
@@ -80,7 +89,7 @@ export default function Home() {
   const handleBookNow = useCallback((item) => {
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
     if (!isInCart) {
-      addProductToCart(item); 
+      addProductToCart(item);
        toast({
         title: "Added to Cart",
         description: `${item.number} has been added to your cart.`,
@@ -119,30 +128,31 @@ export default function Home() {
         Choose from a wide range of exclusive and fancy mobile numbers.
       </p>
 
-      <SearchBar /> 
-      
-      <div className="mt-8"> {/* Added margin top for spacing */}
+      <SearchBar />
+
+      <div className="mt-8">
         {categories.map((category, index) => (
           <CategorySection
             key={index}
             title={category.title}
+            slug={category.slug} // Pass slug to CategorySection
             items={category.items}
             isLoading={isLoading}
             onBookNow={(item) => executeOrPromptLogin(handleBookNow, item)}
             onAddToCart={(item) => executeOrPromptLogin(handleAddToCart, item)}
-            onToggleFavorite={handleToggleFavorite} // Pass the item object
-            isFavorite={(itemId) => isFavorite(itemId)} // Pass isFavorite function
+            onToggleFavorite={handleToggleFavorite}
+            isFavorite={(itemId) => isFavorite(itemId)}
           />
         ))}
       </div>
-      
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
         onClose={() => {
           setIsLoginModalOpen(false);
-          setPendingAction(null); 
-        }} 
-        onLoginSuccess={handleLoginSuccess} 
+          setPendingAction(null);
+        }}
+        onLoginSuccess={handleLoginSuccess}
       />
     </div>
   );

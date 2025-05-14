@@ -1,3 +1,4 @@
+
 /**
  * @file CategorySection.jsx
  * @description A component to display a category of items with a title.
@@ -6,6 +7,7 @@
 "use client";
 
 import React, { useRef } from 'react';
+import Link from 'next/link'; // Import Link
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { Button } from '@/components/ui/button';
@@ -14,7 +16,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 const ITEMS_PER_SECTION = 10;
 const SCROLL_AMOUNT = 300; // Amount to scroll in pixels
 
-export default function CategorySection({ title, items, isLoading, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
+export default function CategorySection({ title, slug, items, isLoading, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
   const scrollContainerRef = useRef(null);
   const safeItems = items || [];
 
@@ -76,10 +78,12 @@ export default function CategorySection({ title, items, isLoading, onBookNow, on
       >
         {isLoading ? renderSkeletons() : renderItems()}
       </div>
-      {showSeeMoreButton && (
+      {showSeeMoreButton && slug && (
         <div className="mt-6 text-center">
-          <Button variant="outline">
-            See More ({safeItems.length - ITEMS_PER_SECTION} more)
+          <Button variant="outline" asChild>
+            <Link href={`/category/${slug}`}>
+              See More ({safeItems.length - ITEMS_PER_SECTION} more)
+            </Link>
           </Button>
         </div>
       )}
