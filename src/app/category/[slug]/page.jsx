@@ -2,24 +2,36 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation'; // To get slug from URL
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Added missing import
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
-import { sampleVipNumbers, initialCategoryDefinitions } from '@/app/page'; // Import data and definitions
+import { db } from '@/lib/firebase'; // Import Firestore
+import { collection, query, where, onSnapshot } from 'firebase/firestore'; // Import Firestore functions
+import { initialCategoryDefinitions } from '@/app/page'; // Import static definitions for titles
 
-// Helper to find category details by slug
+// Helper to find category details by slug from static definitions
 const getCategoryBySlug = (slug) => {
   return initialCategoryDefinitions.find(cat => cat.slug === slug);
+};
+
+// Helper to transform Firestore doc data
+const transformVipNumberData = (doc) => {
+  const data = doc.data();
+  return {
+    id: doc.id, // Use Firestore document ID
+    ...data,
+    expiryTimestamp: data.expiryTimestamp?.toDate ? data.expiryTimestamp.toDate().toISOString() : data.expiryTimestamp,
+  };
 };
 
 export default function CategoryPage() {
@@ -32,7 +44,7 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
-  const [categoryItems, setCategoryItems] = useState([]); // All items for this category
+  const [categoryItems, setCategoryItems] = useState([]); // All items for this category from Firestore
   const [displayedItems, setDisplayedItems] = useState([]); // Items to show after search/filter
   const [isLoading, setIsLoading] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
@@ -42,26 +54,42 @@ export default function CategoryPage() {
   useEffect(() => {
     if (slug) {
       setIsLoading(true);
-      setDigitSearchTerm(''); // Reset search on category change
-      // Simulate data fetching / processing
-      setTimeout(() => {
-        const foundCategory = getCategoryBySlug(slug);
-        if (foundCategory) {
-          setCategoryDetails(foundCategory);
-          const items = sampleVipNumbers[foundCategory.itemsKey] || [];
-          setCategoryItems(items);
-          // setDisplayedItems(items); // Will be handled by the search useEffect
-        } else {
-          toast({
-            title: "Category Not Found",
-            description: `The category "${slug}" does not exist.`,
-            variant: "destructive",
-          });
-          setCategoryItems([]); // Ensure items are cleared if category not found
-          // setDisplayedItems([]);
-        }
+      setDigitSearchTerm('');
+      
+      const foundCategory = getCategoryBySlug(slug);
+      if (foundCategory) {
+        setCategoryDetails(foundCategory);
+      } else {
+        toast({
+          title: "Category Not Found",
+          description: `The category definition for "${slug}" does not exist.`,
+          variant: "destructive",
+        });
+        setCategoryItems([]);
+        setDisplayedItems([]);
         setIsLoading(false);
-      }, 500);
+        return; // Exit if category definition not found
+      }
+
+      const q = query(collection(db, "vipNumbers"), where("categorySlug", "==", slug));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const items = querySnapshot.docs.map(transformVipNumberData);
+        setCategoryItems(items);
+        // setDisplayedItems(items); // Will be handled by the search useEffect
+        setIsLoading(false);
+      }, (error) => {
+        console.error(`Error fetching items for category ${slug}:`, error);
+        toast({
+          title: "Error",
+          description: `Could not load items for category "${slug}".`,
+          variant: "destructive",
+        });
+        setCategoryItems([]);
+        // setDisplayedItems([]);
+        setIsLoading(false);
+      });
+
+      return () => unsubscribe(); // Cleanup listener
     }
   }, [slug, toast]);
 
@@ -140,7 +168,7 @@ export default function CategoryPage() {
     return (
       <div className="space-y-8">
         <Skeleton className="h-10 w-1/2 rounded-md" />
-        <Skeleton className="h-10 w-1/3 rounded-md mt-4 mb-6" /> {/* Skeleton for search input area */}
+        <Skeleton className="h-10 w-1/3 rounded-md mt-4 mb-6" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {renderSkeletons(8)}
         </div>
@@ -148,12 +176,12 @@ export default function CategoryPage() {
     );
   }
 
-  if (!categoryDetails && !isLoading) {
+  if (!categoryDetails && !isLoading) { // If slug was invalid and no category definition found
     return (
       <div className="text-center py-10">
         <h1 className="text-2xl font-bold mb-4">Category Not Found</h1>
         <p className="text-muted-foreground mb-6">
-          The category you're looking for doesn't exist or has been moved.
+          The category definition for "{slug}" does not exist.
         </p>
         <Button asChild>
           <Link href="/">Go to Homepage</Link>
@@ -161,7 +189,7 @@ export default function CategoryPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="space-y-8">
       <div>

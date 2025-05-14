@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -10,28 +11,23 @@ import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
-
-// Sample data - replace with actual data source and filtering logic
-const allVipNumbers = [
-  { id: 'vip1', number: '9090507860', price: 3999, originalPrice: 5299, totalDigits: 10, sumOfDigits: 4, isVip: true, discount: 1300, expiryTimestamp: new Date(Date.now() + 86400000).toISOString(), imageHint: "vip number" },
-  { id: 'vip2', number: '8888887861', price: 4999, originalPrice: 6299, totalDigits: 10, sumOfDigits: 5, isVip: true, discount: 1300, expiryTimestamp: new Date(Date.now() + 2 * 86400000).toISOString(), imageHint: "mobile number" },
-  { id: 'vip3', number: '9123457862', price: 2999, originalPrice: 4299, totalDigits: 10, sumOfDigits: 6, isVip: false, discount: 1300, expiryTimestamp: new Date(Date.now() + 0.5 * 86400000).toISOString(), imageHint: "sim card" },
-  { id: 'vip4', number: '9988776655', price: 1999, originalPrice: 3299, totalDigits: 10, sumOfDigits: 8, isVip: false, discount: 1300, expiryTimestamp: new Date(Date.now() + 3 * 86400000).toISOString(), imageHint: "fancy number" },
-  { id: 'vip5', number: '7777112233', price: 2499, originalPrice: 3799, totalDigits: 10, sumOfDigits: 1, isVip: true, discount: 1300, expiryTimestamp: new Date(Date.now() + 1.5 * 86400000).toISOString(), imageHint: "special number" },
-  { id: 'vip6', number: '9000000001', price: 9999, originalPrice: 11299, totalDigits: 10, sumOfDigits: 1, isVip: true, discount: 1300, expiryTimestamp: new Date(Date.now() + 5 * 86400000).toISOString(), imageHint: "premium number" },
-  { id: 'vip7', number: '8000000008', price: 8999, originalPrice: 10299, totalDigits: 10, sumOfDigits: 8, isVip: true, discount: 1300, expiryTimestamp: new Date(Date.now() + 0.2 * 86400000).toISOString(), imageHint: "exclusive number" },
-  { id: 'vip8', number: '7770001111', price: 7999, originalPrice: 9299, totalDigits: 10, sumOfDigits: 7, isVip: false, discount: 1300, expiryTimestamp: new Date(Date.now() + 4 * 86400000).toISOString(), imageHint: "collection number" },
-  // Add more for pagination/lazy loading testing
-  { id: 'vip9', number: '1234567890', price: 1500, originalPrice: 2000, totalDigits: 10, sumOfDigits: 5, isVip: false, discount: 500, expiryTimestamp: new Date(Date.now() + 86400000).toISOString(), imageHint: "standard number" },
-  { id: 'vip10', number: '0987654321', price: 1800, originalPrice: 2200, totalDigits: 10, sumOfDigits: 6, isVip: false, discount: 400, expiryTimestamp: new Date(Date.now() + 2*86400000).toISOString(), imageHint: "simple number" },
-  { id: 'vip11', number: '1122334455', price: 2200, originalPrice: 2800, totalDigits: 10, sumOfDigits: 7, isVip: true, discount: 600, expiryTimestamp: new Date(Date.now() + 3*86400000).toISOString(), imageHint: "pattern number" },
-  { id: 'vip12', number: '5544332211', price: 2100, originalPrice: 2700, totalDigits: 10, sumOfDigits: 8, isVip: true, discount: 600, expiryTimestamp: new Date(Date.now() + 4*86400000).toISOString(), imageHint: "sequential number" },
-];
+import { db } from '@/lib/firebase'; // Import Firestore
+import { collection, onSnapshot, query } from 'firebase/firestore'; // Import Firestore functions
 
 const ITEMS_PER_PAGE = 8;
 
+// Helper to transform Firestore doc data
+const transformVipNumberData = (doc) => {
+  const data = doc.data();
+  return {
+    id: doc.id, // Use Firestore document ID
+    ...data,
+    expiryTimestamp: data.expiryTimestamp?.toDate ? data.expiryTimestamp.toDate().toISOString() : data.expiryTimestamp,
+  };
+};
+
 export default function SearchResultsPage() {
-  const searchParams = useSearchParams();
+  const searchParamsHook = useSearchParams(); // Renamed to avoid conflict with searchParams variable
   const { toast } = useToast();
   const { user } = useAuth();
   const { addToCart: addProductToCart, cartItems } = useCart();
@@ -39,6 +35,7 @@ export default function SearchResultsPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
+  const [allFetchedNumbers, setAllFetchedNumbers] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [displayedItems, setDisplayedItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,52 +43,76 @@ export default function SearchResultsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const searchTerm = searchParams.get('term') || '';
-  const searchType = searchParams.get('type') || 'digits';
-  // Get other search options
-  const globalSearch = searchParams.get('globalSearch') === 'true';
-  const premiumSearch = searchParams.get('premiumSearch') === 'true';
-  // ... and so on for other options
+  // Memoize search parameters to prevent re-triggering main useEffect unnecessarily
+  const searchTerm = searchParamsHook.get('term') || '';
+  const searchType = searchParamsHook.get('type') || 'digits';
+  const globalSearch = searchParamsHook.get('globalSearch') === 'true';
+  const premiumSearch = searchParamsHook.get('premiumSearch') === 'true';
 
-  // Simulate filtering based on search params
+  // Effect to fetch all numbers initially
   useEffect(() => {
     setIsLoading(true);
-    setPage(1); // Reset page on new search
+    const vipNumbersQuery = query(collection(db, "vipNumbers"));
+    const unsubscribe = onSnapshot(vipNumbersQuery, (querySnapshot) => {
+      const numbers = querySnapshot.docs.map(transformVipNumberData);
+      setAllFetchedNumbers(numbers);
+      // Initial loading is done, further filtering will happen in the next effect
+    }, (error) => {
+      console.error("Error fetching all VIP numbers for search:", error);
+      toast({
+        title: "Error",
+        description: "Could not load numbers for search. Please try again later.",
+        variant: "destructive",
+      });
+      setAllFetchedNumbers([]);
+      setIsLoading(false); // Ensure loading stops on error
+    });
+    return () => unsubscribe();
+  }, [toast]);
 
-    // Simulate API call / complex filtering
-    setTimeout(() => {
-      let results = allVipNumbers;
+  // Effect to filter and paginate numbers when searchParams or allFetchedNumbers change
+  useEffect(() => {
+    if (allFetchedNumbers.length === 0 && !isLoading && !searchParamsHook.toString()) { 
+        // if no numbers and not loading, and no search params (direct nav), then finish loading
+        setIsLoading(false);
+        return;
+    }
+    if (allFetchedNumbers.length > 0 || searchParamsHook.toString()) { // Process if numbers are loaded or search is active
+      setIsLoading(true); // Start loading for filtering
+      setPage(1); // Reset page on new search/filter
+
+      let results = [...allFetchedNumbers]; // Create a mutable copy
+
       if (searchType === 'digits' && searchTerm) {
-        results = allVipNumbers.filter(item => 
+        results = results.filter(item => 
           item.number.includes(searchTerm) || 
-          (globalSearch && (item.id.includes(searchTerm) || String(item.price).includes(searchTerm)))
-          // Add more complex logic based on premiumSearch, exactDigitPlacement etc.
+          (globalSearch && (String(item.price).includes(searchTerm))) 
+          // Note: id search might not be relevant for Firestore doc IDs unless explicitly set
         );
       } else if (searchType === 'price') {
-        // Implement price filtering logic here based on params
-        // For now, just show some items if no specific term
-        results = allVipNumbers.filter(item => item.price < 5000); 
+        // Dummy price filter for now, as price range input isn't implemented
+        results = results.filter(item => item.price < 50000); 
       } else if (searchType === 'family') {
-        // Implement family pack logic here based on params
-         results = allVipNumbers.filter(item => item.isVip); // Example
+        results = results.filter(item => item.isVip); // Example
       }
-      // Apply other options like premiumSearch, numerologySearch etc.
+
       if (premiumSearch) {
         results = results.filter(item => item.isVip);
       }
-
+      
       setFilteredItems(results);
       setDisplayedItems(results.slice(0, ITEMS_PER_PAGE));
       setHasMore(results.length > ITEMS_PER_PAGE);
-      setIsLoading(false);
-    }, 1000);
-  }, [searchParams, searchTerm, searchType, globalSearch, premiumSearch]);
+      setIsLoading(false); // Filtering complete
+    }
+  }, [searchParamsHook, allFetchedNumbers, searchTerm, searchType, globalSearch, premiumSearch, isLoading]);
 
 
   const loadMoreItems = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
 
     setIsLoadingMore(true);
+    // Simulate network delay for loading more, not strictly necessary with local filtering
     setTimeout(() => {
       const nextPage = page + 1;
       const newItems = filteredItems.slice(0, nextPage * ITEMS_PER_PAGE);
@@ -99,7 +120,7 @@ export default function SearchResultsPage() {
       setPage(nextPage);
       setHasMore(newItems.length < filteredItems.length);
       setIsLoadingMore(false);
-    }, 500); // Simulate network delay
+    }, 300); 
   }, [page, filteredItems, hasMore, isLoadingMore]);
 
   const handleLoginSuccess = () => {
@@ -129,8 +150,6 @@ export default function SearchResultsPage() {
         description: `${item.number} has been added to your cart.`,
       });
     }
-    // Intentionally not navigating to checkout from search results page to allow further browsing
-    // router.push('/checkout'); 
   }, [addProductToCart, toast, cartItems]);
 
   const handleAddToCart = useCallback((item) => {
@@ -177,13 +196,13 @@ export default function SearchResultsPage() {
               <VipNumberCard
                 key={item.id}
                 numberDetails={item}
-                onBookNow={(item) => executeOrPromptLogin(handleBookNow, item)}
-                onAddToCart={(item) => executeOrPromptLogin(handleAddToCart, item)}
+                onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
+                onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
                 onToggleFavorite={handleToggleFavorite}
                 isFavorite={isFavorite(item.id)}
               />
             ))}
-            {isLoadingMore && renderSkeletons(2)} {/* Show a couple of skeletons when loading more */}
+            {isLoadingMore && renderSkeletons(2)}
           </div>
           {hasMore && !isLoadingMore && (
             <div className="text-center mt-8">
@@ -192,6 +211,9 @@ export default function SearchResultsPage() {
               </Button>
             </div>
           )}
+           {!hasMore && filteredItems.length > ITEMS_PER_PAGE && (
+             <p className="text-center text-muted-foreground text-sm mt-8">End of results.</p>
+           )}
         </>
       ) : (
         <p className="text-center text-muted-foreground text-lg py-10">
