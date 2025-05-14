@@ -15,19 +15,26 @@ import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase'; // Import Firestore
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 
 
-// Helper to transform Firestore doc data
+// Helper to transform Firestore doc data (simplified)
 const transformVipNumberData = (doc) => {
   const data = doc.data();
   return {
-    id: doc.id, // Use Firestore document ID
+    id: doc.id,
     ...data,
-    expiryTimestamp: data.expiryTimestamp?.toDate ? data.expiryTimestamp.toDate().toISOString() : data.expiryTimestamp,
   };
 };
+
+const transformCategoryData = (doc) => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    ...data,
+  };
+}
 
 export default function CategoryPage() {
   const params = useParams();
@@ -39,50 +46,55 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
-  const [categoryItems, setCategoryItems] = useState([]); // All items for this category from Firestore
-  const [displayedItems, setDisplayedItems] = useState([]); // Items to show after search/filter
-  const [isLoading, setIsLoading] = useState(true);
+  const [categoryItems, setCategoryItems] = useState([]);
+  const [displayedItems, setDisplayedItems] = useState([]);
+  const [isLoadingCategory, setIsLoadingCategory] = useState(true);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
 
   const slug = params?.slug;
 
+  // Fetch category details
   useEffect(() => {
     if (slug) {
-      setIsLoading(true);
-      setDigitSearchTerm('');
-      setCategoryDetails(null); // Reset category details on slug change
+      setIsLoadingCategory(true);
+      const categoryQuery = query(collection(db, "categories"), where("slug", "==", slug), limit(1));
       
-      // Fetch category details from Firestore
-      const categoryQuery = query(collection(db, "categories"), where("slug", "==", slug));
-      getDocs(categoryQuery).then((querySnapshot) => {
+      const unsubscribeCategory = onSnapshot(categoryQuery, (querySnapshot) => {
         if (!querySnapshot.empty) {
           const categoryDoc = querySnapshot.docs[0];
-          setCategoryDetails({ id: categoryDoc.id, ...categoryDoc.data() });
+          setCategoryDetails(transformCategoryData(categoryDoc));
         } else {
           toast({
             title: "Category Not Found",
             description: `The category "${slug}" does not exist.`,
             variant: "destructive",
           });
-          setCategoryDetails(null); // Ensure details are null if not found
-          setCategoryItems([]);
-          setDisplayedItems([]);
-          setIsLoading(false);
-          return; // Stop if category itself isn't found
+          setCategoryDetails(null);
         }
-      }).catch(error => {
+        setIsLoadingCategory(false);
+      }, (error) => {
         console.error(`Error fetching category details for ${slug}:`, error);
         toast({ title: "Error", description: "Could not load category details.", variant: "destructive" });
-        setIsLoading(false);
-        return; // Stop on error
+        setIsLoadingCategory(false);
       });
 
-      const q = query(collection(db, "vipNumbers"), where("categorySlug", "==", slug), where("status", "==", "available")); // Only fetch available numbers
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      return () => unsubscribeCategory();
+    }
+  }, [slug, toast]);
+
+  // Fetch items for the category
+  useEffect(() => {
+    if (slug) {
+      setIsLoadingItems(true);
+      // Fetch only 'available' numbers
+      const itemsQuery = query(collection(db, "vipNumbers"), where("categorySlug", "==", slug), where("status", "==", "available"));
+      
+      const unsubscribeItems = onSnapshot(itemsQuery, (querySnapshot) => {
         const items = querySnapshot.docs.map(transformVipNumberData);
         setCategoryItems(items);
-        // setDisplayedItems(items); // Will be handled by the search useEffect
-        setIsLoading(false);
+        // displayedItems will be set by the search useEffect
+        setIsLoadingItems(false);
       }, (error) => {
         console.error(`Error fetching items for category ${slug}:`, error);
         toast({
@@ -91,16 +103,16 @@ export default function CategoryPage() {
           variant: "destructive",
         });
         setCategoryItems([]);
-        // setDisplayedItems([]);
-        setIsLoading(false);
+        setIsLoadingItems(false);
       });
 
-      return () => unsubscribe(); // Cleanup listener
+      return () => unsubscribeItems();
     }
   }, [slug, toast]);
 
+  // Filter items based on search term
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoadingItems) return;
 
     if (digitSearchTerm.trim() === '') {
       setDisplayedItems(categoryItems);
@@ -110,7 +122,7 @@ export default function CategoryPage() {
       );
       setDisplayedItems(filtered);
     }
-  }, [digitSearchTerm, categoryItems, isLoading]);
+  }, [digitSearchTerm, categoryItems, isLoadingItems]);
 
 
   const handleLoginSuccess = () => {
@@ -140,8 +152,8 @@ export default function CategoryPage() {
         description: `${item.number} has been added to your cart.`,
       });
     }
-    // router.push('/checkout'); // No auto-navigation from category page
-  }, [addProductToCart, toast, cartItems]);
+    router.push('/checkout');
+  }, [addProductToCart, toast, cartItems, router]); // Added router to dependencies
 
   const handleAddToCart = useCallback((item) => {
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
@@ -170,6 +182,8 @@ export default function CategoryPage() {
     ))
   );
 
+  const isLoading = isLoadingCategory || isLoadingItems;
+
   if (isLoading) {
     return (
       <div className="space-y-8">
@@ -182,12 +196,12 @@ export default function CategoryPage() {
     );
   }
 
-  if (!categoryDetails && !isLoading) { // If category details fetch failed or category not found
+  if (!categoryDetails && !isLoadingCategory) {
     return (
       <div className="text-center py-20">
         <h1 className="text-2xl font-bold mb-4">Category Not Found</h1>
         <p className="text-muted-foreground mb-6">
-          The category definition for "{slug}" does not exist.
+          The category "{slug}" does not exist or could not be loaded.
         </p>
         <Button asChild>
           <Link href="/">Go to Homepage</Link>
@@ -223,7 +237,7 @@ export default function CategoryPage() {
         </div>
       )}
 
-      {categoryItems.length === 0 && !isLoading && (
+      {categoryItems.length === 0 && !isLoadingItems && (
         <p className="text-center text-muted-foreground text-lg py-10">
           No VIP numbers found in this category.
         </p>

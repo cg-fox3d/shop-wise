@@ -9,30 +9,33 @@ import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
-import { db } from '@/lib/firebase'; // Import Firestore
-import { collection, onSnapshot, query } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
 
-// Keep initialCategoryDefinitions to structure the page and define category slugs/titles
-export const initialCategoryDefinitions = [
-  { title: "Ending with 786", slug: "ending-with-786", itemsKey: 'endingWith786' }, // itemsKey is now illustrative
-  { title: "Double Numbers", slug: "double-numbers", itemsKey: 'doubleNumbers' },
-  { title: "Our Top Choice", slug: "our-top-choice", itemsKey: 'topChoice' },
-];
-
-// Helper to transform Firestore doc data
+// Helper to transform Firestore doc data (simplified)
 const transformVipNumberData = (doc) => {
   const data = doc.data();
   return {
-    id: doc.id, // Use Firestore document ID
+    id: doc.id,
     ...data,
-    // Ensure expiryTimestamp is a string if it's a Firestore Timestamp object
-    expiryTimestamp: data.expiryTimestamp?.toDate ? data.expiryTimestamp.toDate().toISOString() : data.expiryTimestamp,
   };
 };
 
+const transformCategoryData = (doc) => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    ...data,
+  };
+}
+
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingNumbers, setIsLoadingNumbers] = useState(true);
+  const [allCategories, setAllCategories] = useState([]);
+  const [allVipNumbers, setAllVipNumbers] = useState([]);
   const [categoriesData, setCategoriesData] = useState([]);
+  
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
@@ -41,35 +44,61 @@ export default function Home() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
+  // Fetch categories
   useEffect(() => {
-    setIsLoading(true);
-    const vipNumbersQuery = query(collection(db, "vipNumbers"));
+    setIsLoadingCategories(true);
+    const categoriesQuery = query(collection(db, "categories"), orderBy("order", "asc")); // Assuming 'order' field for sorting
 
-    const unsubscribe = onSnapshot(vipNumbersQuery, (querySnapshot) => {
-      const allNumbers = querySnapshot.docs.map(transformVipNumberData);
-      
-      const categorizedVipNumbers = initialCategoryDefinitions.map(categoryDef => {
-        const itemsForCategory = allNumbers.filter(num => num.categorySlug === categoryDef.slug);
-        return {
-          ...categoryDef,
-          items: itemsForCategory,
-        };
+    const unsubscribeCategories = onSnapshot(categoriesQuery, (querySnapshot) => {
+      const fetchedCategories = querySnapshot.docs.map(transformCategoryData);
+      setAllCategories(fetchedCategories);
+      setIsLoadingCategories(false);
+    }, (error) => {
+      console.error("Error fetching categories:", error);
+      toast({
+        title: "Error",
+        description: "Could not load categories.",
+        variant: "destructive",
       });
-      
-      setCategoriesData(categorizedVipNumbers);
-      setIsLoading(false);
+      setIsLoadingCategories(false);
+    });
+
+    return () => unsubscribeCategories();
+  }, [toast]);
+
+  // Fetch VIP numbers (only available ones)
+  useEffect(() => {
+    setIsLoadingNumbers(true);
+    // Fetch only 'available' numbers for the homepage display
+    const vipNumbersQuery = query(collection(db, "vipNumbers"), where("status", "==", "available"));
+
+    const unsubscribeNumbers = onSnapshot(vipNumbersQuery, (querySnapshot) => {
+      const fetchedNumbers = querySnapshot.docs.map(transformVipNumberData);
+      setAllVipNumbers(fetchedNumbers);
+      setIsLoadingNumbers(false);
     }, (error) => {
       console.error("Error fetching VIP numbers:", error);
       toast({
         title: "Error",
-        description: "Could not load VIP numbers. Please try again later.",
+        description: "Could not load VIP numbers.",
         variant: "destructive",
       });
-      setIsLoading(false);
+      setIsLoadingNumbers(false);
     });
 
-    return () => unsubscribe(); // Cleanup listener on unmount
+    return () => unsubscribeNumbers();
   }, [toast]);
+
+  // Combine categories and numbers
+  useEffect(() => {
+    if (!isLoadingCategories && !isLoadingNumbers) {
+      const combinedData = allCategories.map(category => ({
+        ...category,
+        items: allVipNumbers.filter(num => num.categorySlug === category.slug),
+      }));
+      setCategoriesData(combinedData);
+    }
+  }, [allCategories, allVipNumbers, isLoadingCategories, isLoadingNumbers]);
 
   const handleLoginSuccess = () => {
     setIsLoginModalOpen(false);
@@ -117,12 +146,12 @@ export default function Home() {
     });
   }, [addProductToCart, toast, cartItems]);
 
-
   const handleToggleFavorite = useCallback((item) => {
     toggleFavorite(item);
     toast({ title: isFavorite(item.id) ? "Removed from Favorites" : "Added to Favorites" });
   }, [toggleFavorite, isFavorite, toast]);
 
+  const overallLoading = isLoadingCategories || isLoadingNumbers;
 
   return (
     <div>
@@ -134,27 +163,31 @@ export default function Home() {
       <SearchBar />
 
       <div className="mt-8">
-        {categoriesData.map((category, index) => (
+        {overallLoading && allCategories.length === 0 && (
+          // Show skeletons based on a predefined number if categories haven't loaded yet
+          Array.from({ length: 3 }).map((_, index) => (
+            <CategorySection
+              key={`loading-skeleton-${index}`}
+              title="Loading Category..."
+              items={[]}
+              isLoading={true}
+            />
+          ))
+        )}
+        {!overallLoading && categoriesData.length === 0 && (
+            <p className="text-center py-10 text-muted-foreground">No categories or numbers found.</p>
+        )}
+        {categoriesData.map((category) => (
           <CategorySection
-            key={category.slug || index} // Use slug if available for a more stable key
+            key={category.id}
             title={category.title}
             slug={category.slug}
             items={category.items}
-            isLoading={isLoading}
+            isLoading={overallLoading} // Pass overall loading state
             onBookNow={(item) => executeOrPromptLogin(handleBookNow, item)}
             onAddToCart={(item) => executeOrPromptLogin(handleAddToCart, item)}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={(itemId) => isFavorite(itemId)}
-          />
-        ))}
-        {isLoading && initialCategoryDefinitions.map((categoryDef, index) => (
-           // Show skeletons for defined categories while loading
-          <CategorySection
-            key={`loading-${categoryDef.slug || index}`}
-            title={categoryDef.title}
-            slug={categoryDef.slug}
-            items={[]}
-            isLoading={true}
           />
         ))}
       </div>

@@ -1,71 +1,14 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Crown, ShoppingCart, Heart, Info } from 'lucide-react';
+import { Crown, ShoppingCart, Heart } from 'lucide-react'; // Removed Info
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const CountdownTimer = ({ expiryTimestamp }) => {
-  const calculateTimeLeft = () => {
-    const difference = +new Date(expiryTimestamp) - +new Date();
-    let timeLeft = {};
-
-    if (difference > 0) {
-      timeLeft = {
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-      };
-    }
-    return timeLeft;
-  };
-
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
-  const [isMounted, setIsMounted] = useState(false); // To avoid hydration mismatch
-
-  useEffect(() => {
-    setIsMounted(true);
-    const timer = setTimeout(() => {
-      if (isMounted) {
-        setTimeLeft(calculateTimeLeft());
-      }
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer);
-      setIsMounted(false);
-    }
-  }, [timeLeft, isMounted, expiryTimestamp]); // Added expiryTimestamp to dependencies
-
-  if (!isMounted) {
-    return (
-        <Badge variant="outline" className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 text-sm shadow-md">
-        Loading...
-      </Badge>
-    );
-  }
-
-  const timerComponents = [];
-  Object.keys(timeLeft).forEach((interval) => {
-    if (!timeLeft[interval] && interval !== 'seconds' && Object.keys(timeLeft).length > 1 && timeLeft.hours === 0 && timeLeft.minutes === 0) { 
-      return;
-    }
-    timerComponents.push(
-      <span key={interval}>
-        {String(timeLeft[interval]).padStart(2, '0')}
-      </span>
-    );
-  });
-
-  return (
-    <Badge variant="destructive" className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 text-sm shadow-md bg-yellow-400 text-black">
-      {timerComponents.length ? timerComponents.reduce((prev, curr) => [prev, ':', curr]) : <span>Expired!</span>} Left
-    </Badge>
-  );
-};
-
+// CountdownTimer component has been removed
 
 export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
   const {
@@ -77,18 +20,20 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
     sumOfDigits,
     isVip,
     discount,
-    expiryTimestamp, 
+    // expiryTimestamp, // Removed
     similarNumbersLink = "#"
   } = numberDetails;
 
-  const formattedNumber = number.replace(/(\d{4})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3 $4');
+  const formattedNumber = number ? number.replace(/(\d{4})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3 $4') : "N/A";
 
   return (
     <TooltipProvider>
       <Card className="w-full max-w-xs flex-shrink-0 overflow-hidden rounded-lg shadow-lg bg-card transform transition-all hover:scale-105">
         <CardHeader className="p-0 relative">
           <div className="bg-primary/90 text-primary-foreground p-3 flex justify-between items-center">
-            <span className="font-semibold text-sm">Save {discount}/-</span>
+            <span className="font-semibold text-sm">
+              {discount ? `Save ${discount}/-` : (originalPrice && originalPrice > price ? `Save ${originalPrice - price}/-` : 'Best Price')}
+            </span>
             <div className="flex items-center space-x-1.5">
               {isVip && (
                 <Tooltip>
@@ -111,7 +56,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Heart
-                    onClick={() => onToggleFavorite(numberDetails)} // Pass the full item
+                    onClick={() => onToggleFavorite(numberDetails)}
                     className={`h-5 w-5 cursor-pointer hover:text-red-400 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`}
                   />
                 </TooltipTrigger>
@@ -121,14 +66,14 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               </Tooltip>
             </div>
           </div>
-          {expiryTimestamp && <CountdownTimer expiryTimestamp={expiryTimestamp} />}
+          {/* CountdownTimer removed from here */}
         </CardHeader>
-        <CardContent className="p-4 text-center space-y-3 pt-8"> 
+        <CardContent className="p-4 text-center space-y-3 pt-5"> {/* Adjusted pt-5 from pt-8 */}
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <a href={similarNumbersLink} className="hover:underline hover:text-primary">Similar Numbers</a>
             <div className="text-right">
-              <p>Total-{totalDigits}</p>
-              <p>Sum-{sumOfDigits}</p>
+              <p>Total-{totalDigits || 'N/A'}</p>
+              <p>Sum-{sumOfDigits || 'N/A'}</p>
             </div>
           </div>
           
@@ -138,7 +83,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
 
           <div className="flex justify-between items-end">
             <div className="text-left">
-              {originalPrice && (
+              {originalPrice && originalPrice > price && (
                 <p className="text-sm text-muted-foreground line-through">
                   {originalPrice}/-
                 </p>

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { useToast } from "@/hooks/use-toast";
@@ -11,23 +11,23 @@ import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase'; // Import Firestore
-import { collection, onSnapshot, query } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 const ITEMS_PER_PAGE = 8;
 
-// Helper to transform Firestore doc data
+// Helper to transform Firestore doc data (simplified)
 const transformVipNumberData = (doc) => {
   const data = doc.data();
   return {
-    id: doc.id, // Use Firestore document ID
+    id: doc.id,
     ...data,
-    expiryTimestamp: data.expiryTimestamp?.toDate ? data.expiryTimestamp.toDate().toISOString() : data.expiryTimestamp,
   };
 };
 
 export default function SearchResultsPage() {
-  const searchParamsHook = useSearchParams(); // Renamed to avoid conflict with searchParams variable
+  const searchParamsHook = useSearchParams();
+  const router = useRouter(); // Added router
   const { toast } = useToast();
   const { user } = useAuth();
   const { addToCart: addProductToCart, cartItems } = useCart();
@@ -43,20 +43,18 @@ export default function SearchResultsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Memoize search parameters to prevent re-triggering main useEffect unnecessarily
   const searchTerm = searchParamsHook.get('term') || '';
   const searchType = searchParamsHook.get('type') || 'digits';
   const globalSearch = searchParamsHook.get('globalSearch') === 'true';
   const premiumSearch = searchParamsHook.get('premiumSearch') === 'true';
 
-  // Effect to fetch all numbers initially
   useEffect(() => {
     setIsLoading(true);
-    const vipNumbersQuery = query(collection(db, "vipNumbers"));
+    // Fetch only 'available' numbers for search results
+    const vipNumbersQuery = query(collection(db, "vipNumbers"), where("status", "==", "available"));
     const unsubscribe = onSnapshot(vipNumbersQuery, (querySnapshot) => {
       const numbers = querySnapshot.docs.map(transformVipNumberData);
       setAllFetchedNumbers(numbers);
-      // Initial loading is done, further filtering will happen in the next effect
     }, (error) => {
       console.error("Error fetching all VIP numbers for search:", error);
       toast({
@@ -65,35 +63,33 @@ export default function SearchResultsPage() {
         variant: "destructive",
       });
       setAllFetchedNumbers([]);
-      setIsLoading(false); // Ensure loading stops on error
+      setIsLoading(false);
     });
     return () => unsubscribe();
   }, [toast]);
 
-  // Effect to filter and paginate numbers when searchParams or allFetchedNumbers change
   useEffect(() => {
-    if (allFetchedNumbers.length === 0 && !isLoading && !searchParamsHook.toString()) { 
-        // if no numbers and not loading, and no search params (direct nav), then finish loading
+    if (allFetchedNumbers.length === 0 && !isLoading && !searchParamsHook.toString()) {
         setIsLoading(false);
         return;
     }
-    if (allFetchedNumbers.length > 0 || searchParamsHook.toString()) { // Process if numbers are loaded or search is active
-      setIsLoading(true); // Start loading for filtering
-      setPage(1); // Reset page on new search/filter
+    if (allFetchedNumbers.length > 0 || searchParamsHook.toString()) {
+      setIsLoading(true);
+      setPage(1);
 
-      let results = [...allFetchedNumbers]; // Create a mutable copy
+      let results = [...allFetchedNumbers];
 
       if (searchType === 'digits' && searchTerm) {
         results = results.filter(item => 
           item.number.includes(searchTerm) || 
-          (globalSearch && (String(item.price).includes(searchTerm))) 
-          // Note: id search might not be relevant for Firestore doc IDs unless explicitly set
+          (globalSearch && (String(item.price).includes(searchTerm)))
         );
       } else if (searchType === 'price') {
-        // Dummy price filter for now, as price range input isn't implemented
-        results = results.filter(item => item.price < 50000); 
+        // Placeholder: Actual price filtering logic would go here (e.g., from a range input)
+        // For now, just shows all available if "Search by Price" is clicked without specific criteria
       } else if (searchType === 'family') {
-        results = results.filter(item => item.isVip); // Example
+         // Placeholder: Actual family pack filtering logic would go here
+        // For now, just shows all available if "Family Pack" is clicked without specific criteria
       }
 
       if (premiumSearch) {
@@ -103,16 +99,14 @@ export default function SearchResultsPage() {
       setFilteredItems(results);
       setDisplayedItems(results.slice(0, ITEMS_PER_PAGE));
       setHasMore(results.length > ITEMS_PER_PAGE);
-      setIsLoading(false); // Filtering complete
+      setIsLoading(false);
     }
   }, [searchParamsHook, allFetchedNumbers, searchTerm, searchType, globalSearch, premiumSearch, isLoading]);
 
 
   const loadMoreItems = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
-
     setIsLoadingMore(true);
-    // Simulate network delay for loading more, not strictly necessary with local filtering
     setTimeout(() => {
       const nextPage = page + 1;
       const newItems = filteredItems.slice(0, nextPage * ITEMS_PER_PAGE);
@@ -150,7 +144,8 @@ export default function SearchResultsPage() {
         description: `${item.number} has been added to your cart.`,
       });
     }
-  }, [addProductToCart, toast, cartItems]);
+    router.push('/checkout'); // Navigate to checkout
+  }, [addProductToCart, toast, cartItems, router]);
 
   const handleAddToCart = useCallback((item) => {
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
