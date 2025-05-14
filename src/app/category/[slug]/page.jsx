@@ -7,7 +7,8 @@ import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input"; // Added for search
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label"; // Added missing import
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
@@ -226,4 +227,3 @@ export default function CategoryPage() {
     </div>
   );
 }
-
