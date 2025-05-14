@@ -61,16 +61,25 @@ export default function CategorySection({ title, slug, items, isLoading, onBookN
     <section className="py-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">{title}</h2>
-        {!isLoading && itemsToDisplay.length > 0 && (
-          <div className="flex space-x-2">
-            <Button variant="outline" size="icon" onClick={scrollLeft} aria-label="Scroll left">
-              <ChevronLeft className="h-4 w-4" />
+        <div className="flex items-center space-x-2">
+          {!isLoading && itemsToDisplay.length > 0 && (
+            <>
+              <Button variant="outline" size="icon" onClick={scrollLeft} aria-label="Scroll left">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={scrollRight} aria-label="Scroll right">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          {showSeeMoreButton && slug && (
+            <Button variant="outline" asChild>
+              <Link href={`/category/${slug}`}>
+                See More ({safeItems.length - ITEMS_PER_SECTION} more)
+              </Link>
             </Button>
-            <Button variant="outline" size="icon" onClick={scrollRight} aria-label="Scroll right">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div
         ref={scrollContainerRef}
@@ -78,15 +87,6 @@ export default function CategorySection({ title, slug, items, isLoading, onBookN
       >
         {isLoading ? renderSkeletons() : renderItems()}
       </div>
-      {showSeeMoreButton && slug && (
-        <div className="mt-6 text-center">
-          <Button variant="outline" asChild>
-            <Link href={`/category/${slug}`}>
-              See More ({safeItems.length - ITEMS_PER_SECTION} more)
-            </Link>
-          </Button>
-        </div>
-      )}
       {!isLoading && itemsToDisplay.length === 0 && safeItems.length === 0 && (
          <p className="text-muted-foreground text-center py-4">No items in this category yet.</p>
       )}

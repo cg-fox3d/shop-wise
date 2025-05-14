@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'; // To get slug from URL
 import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
+import { Skeleton } from "@/components/ui/skeleton"; // Added missing import
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
