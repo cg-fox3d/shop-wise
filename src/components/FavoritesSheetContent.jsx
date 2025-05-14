@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/sheet";
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image'; // Assuming VIP numbers might have images later
 
 export default function FavoritesSheetContent() {
   const { favoriteItems, removeFromFavorites, getFavoritesCount } = useFavorites();
@@ -55,56 +55,50 @@ export default function FavoritesSheetContent() {
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1 -mx-6">
-             <div className="px-6">
+          <ScrollArea className="flex-1">
+             <div className="divide-y divide-border">
                 {favoriteItems.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4 py-4">
-                    {/* Placeholder for image - adapt if VIP numbers get images */}
-                    <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-                       {/* <Image
-                          src={item.imageUrl || `https://picsum.photos/seed/${item.id}/64`}
-                          alt={item.name || item.number}
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                          data-ai-hint={item.imageHint || "number"}
-                        /> */}
-                        <span className="text-xs text-muted-foreground">No Image</span>
+                  <div key={item.id} className="px-6 py-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-base text-foreground flex-grow pr-2">
+                        {item.number}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0 -mr-2"
+                        onClick={() => removeFromFavorites(item.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-medium text-sm">{item.number}</h3>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive -mr-2"
-                          onClick={() => removeFromFavorites(item.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                       </div>
-                       <div className="flex items-center justify-between mt-1">
-                        <p className="text-sm font-medium text-primary">
-                          ${item.price.toFixed(2)}
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAddToCartFromFavorites(item)}
-                          disabled={cartItems.some(cartItem => cartItem.id === item.id)}
-                        >
-                          <ShoppingCart className="mr-2 h-4 w-4" />
-                          {cartItems.some(cartItem => cartItem.id === item.id) ? "In Cart" : "Add to Cart"}
-                        </Button>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="text-primary font-medium">${item.price.toFixed(2)}</span>
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <span className="ml-2 line-through text-muted-foreground">
+                            ${item.originalPrice.toFixed(2)}
+                          </span>
+                        )}
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddToCartFromFavorites(item)}
+                        disabled={cartItems.some(cartItem => cartItem.id === item.id)}
+                      >
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        {cartItems.some(cartItem => cartItem.id === item.id) ? "In Cart" : "Add to Cart"}
+                      </Button>
                     </div>
                   </div>
                 ))}
              </div>
           </ScrollArea>
-          <SheetFooter className="mt-auto">
+          <Separator />
+          <SheetFooter className="mt-auto px-6">
              <SheetClose asChild>
-               <Button asChild className="w-full">
+               <Button asChild className="w-full my-4">
                   <Link href="/">Continue Shopping</Link>
                </Button>
             </SheetClose>
