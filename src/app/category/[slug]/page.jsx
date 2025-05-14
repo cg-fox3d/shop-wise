@@ -16,13 +16,8 @@ import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase'; // Import Firestore
-import { collection, query, where, onSnapshot } from 'firebase/firestore'; // Import Firestore functions
-import { initialCategoryDefinitions } from '@/app/page'; // Import static definitions for titles
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore'; // Import Firestore functions
 
-// Helper to find category details by slug from static definitions
-const getCategoryBySlug = (slug) => {
-  return initialCategoryDefinitions.find(cat => cat.slug === slug);
-};
 
 // Helper to transform Firestore doc data
 const transformVipNumberData = (doc) => {
@@ -55,23 +50,34 @@ export default function CategoryPage() {
     if (slug) {
       setIsLoading(true);
       setDigitSearchTerm('');
+      setCategoryDetails(null); // Reset category details on slug change
       
-      const foundCategory = getCategoryBySlug(slug);
-      if (foundCategory) {
-        setCategoryDetails(foundCategory);
-      } else {
-        toast({
-          title: "Category Not Found",
-          description: `The category definition for "${slug}" does not exist.`,
-          variant: "destructive",
-        });
-        setCategoryItems([]);
-        setDisplayedItems([]);
+      // Fetch category details from Firestore
+      const categoryQuery = query(collection(db, "categories"), where("slug", "==", slug));
+      getDocs(categoryQuery).then((querySnapshot) => {
+        if (!querySnapshot.empty) {
+          const categoryDoc = querySnapshot.docs[0];
+          setCategoryDetails({ id: categoryDoc.id, ...categoryDoc.data() });
+        } else {
+          toast({
+            title: "Category Not Found",
+            description: `The category "${slug}" does not exist.`,
+            variant: "destructive",
+          });
+          setCategoryDetails(null); // Ensure details are null if not found
+          setCategoryItems([]);
+          setDisplayedItems([]);
+          setIsLoading(false);
+          return; // Stop if category itself isn't found
+        }
+      }).catch(error => {
+        console.error(`Error fetching category details for ${slug}:`, error);
+        toast({ title: "Error", description: "Could not load category details.", variant: "destructive" });
         setIsLoading(false);
-        return; // Exit if category definition not found
-      }
+        return; // Stop on error
+      });
 
-      const q = query(collection(db, "vipNumbers"), where("categorySlug", "==", slug));
+      const q = query(collection(db, "vipNumbers"), where("categorySlug", "==", slug), where("status", "==", "available")); // Only fetch available numbers
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const items = querySnapshot.docs.map(transformVipNumberData);
         setCategoryItems(items);
@@ -176,9 +182,9 @@ export default function CategoryPage() {
     );
   }
 
-  if (!categoryDetails && !isLoading) { // If slug was invalid and no category definition found
+  if (!categoryDetails && !isLoading) { // If category details fetch failed or category not found
     return (
-      <div className="text-center py-10">
+      <div className="text-center py-20">
         <h1 className="text-2xl font-bold mb-4">Category Not Found</h1>
         <p className="text-muted-foreground mb-6">
           The category definition for "{slug}" does not exist.
