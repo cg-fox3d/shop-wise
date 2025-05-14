@@ -1,35 +1,55 @@
 /**
  * @file CategorySection.jsx
  * @description A component to display a category of items with a title.
- * Items are displayed in a responsive vertical grid.
+ * Items are displayed in a horizontally scrollable row with navigation arrows.
  */
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { useRef } from 'react';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_SECTION = 10;
+const SCROLL_AMOUNT = 300; // Amount to scroll in pixels
 
 export default function CategorySection({ title, items, isLoading, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
-  // Fallback for items if it's undefined or null during loading or error
+  const scrollContainerRef = useRef(null);
   const safeItems = items || [];
+
+  const itemsToDisplay = isLoading ? [] : safeItems.slice(0, ITEMS_PER_SECTION);
+  const showSeeMoreButton = !isLoading && safeItems.length > ITEMS_PER_SECTION;
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: SCROLL_AMOUNT, behavior: 'smooth' });
+    }
+  };
 
   const renderSkeletons = () => (
     Array.from({ length: 5 }).map((_, index) => (
-      <div key={`skeleton-${index}`}>
+      <div key={`skeleton-${index}`} className="flex-shrink-0">
         <VipNumberCardSkeleton />
       </div>
     ))
   );
 
   const renderItems = () => (
-    safeItems.map((item) => (
-      <div key={item.id}>
+    itemsToDisplay.map((item) => (
+      <div key={item.id} className="flex-shrink-0 w-[280px] md:w-[300px]"> {/* Fixed width for cards */}
         <VipNumberCard
           numberDetails={item}
           onBookNow={onBookNow}
           onAddToCart={onAddToCart}
-          onToggleFavorite={onToggleFavorite} // Pass the item itself
-          isFavorite={isFavorite(item.id)} // Call isFavorite with item.id
+          onToggleFavorite={onToggleFavorite}
+          isFavorite={isFavorite(item.id)}
         />
       </div>
     ))
@@ -37,12 +57,35 @@ export default function CategorySection({ title, items, isLoading, onBookNow, on
 
   return (
     <section className="py-8">
-      <h2 className="text-2xl font-bold mb-6">{title}</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        <Suspense fallback={<>{renderSkeletons()}</>}>
-          {isLoading ? renderSkeletons() : renderItems()}
-        </Suspense>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">{title}</h2>
+        {!isLoading && itemsToDisplay.length > 0 && (
+          <div className="flex space-x-2">
+            <Button variant="outline" size="icon" onClick={scrollLeft} aria-label="Scroll left">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={scrollRight} aria-label="Scroll right">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
+      <div
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto space-x-6 pb-4 scrollbar-hide"
+      >
+        {isLoading ? renderSkeletons() : renderItems()}
+      </div>
+      {showSeeMoreButton && (
+        <div className="mt-6 text-center">
+          <Button variant="outline">
+            See More ({safeItems.length - ITEMS_PER_SECTION} more)
+          </Button>
+        </div>
+      )}
+      {!isLoading && itemsToDisplay.length === 0 && safeItems.length === 0 && (
+         <p className="text-muted-foreground text-center py-4">No items in this category yet.</p>
+      )}
     </section>
   );
 }
