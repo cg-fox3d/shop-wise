@@ -6,7 +6,8 @@ import { useParams } from 'next/navigation'; // To get slug from URL
 import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
-import { Skeleton } from "@/components/ui/skeleton"; // Added missing import
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input"; // Added for search
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
@@ -21,7 +22,7 @@ const getCategoryBySlug = (slug) => {
 };
 
 export default function CategoryPage() {
-  const params = useParams(); // { slug: 'category-slug-value' }
+  const params = useParams();
   const { toast } = useToast();
   const { user } = useAuth();
   const { addToCart: addProductToCart, cartItems } = useCart();
@@ -30,14 +31,17 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
-  const [categoryItems, setCategoryItems] = useState([]);
+  const [categoryItems, setCategoryItems] = useState([]); // All items for this category
+  const [displayedItems, setDisplayedItems] = useState([]); // Items to show after search/filter
   const [isLoading, setIsLoading] = useState(true);
+  const [digitSearchTerm, setDigitSearchTerm] = useState('');
 
   const slug = params?.slug;
 
   useEffect(() => {
     if (slug) {
       setIsLoading(true);
+      setDigitSearchTerm(''); // Reset search on category change
       // Simulate data fetching / processing
       setTimeout(() => {
         const foundCategory = getCategoryBySlug(slug);
@@ -45,18 +49,34 @@ export default function CategoryPage() {
           setCategoryDetails(foundCategory);
           const items = sampleVipNumbers[foundCategory.itemsKey] || [];
           setCategoryItems(items);
+          // setDisplayedItems(items); // Will be handled by the search useEffect
         } else {
-          // Handle category not found
           toast({
             title: "Category Not Found",
             description: `The category "${slug}" does not exist.`,
             variant: "destructive",
           });
+          setCategoryItems([]); // Ensure items are cleared if category not found
+          // setDisplayedItems([]);
         }
         setIsLoading(false);
-      }, 500); // Simulate loading delay
+      }, 500);
     }
   }, [slug, toast]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (digitSearchTerm.trim() === '') {
+      setDisplayedItems(categoryItems);
+    } else {
+      const filtered = categoryItems.filter(item =>
+        item.number.toLowerCase().includes(digitSearchTerm.toLowerCase().trim())
+      );
+      setDisplayedItems(filtered);
+    }
+  }, [digitSearchTerm, categoryItems, isLoading]);
+
 
   const handleLoginSuccess = () => {
     setIsLoginModalOpen(false);
@@ -85,9 +105,7 @@ export default function CategoryPage() {
         description: `${item.number} has been added to your cart.`,
       });
     }
-    // Consider if navigating to checkout is desired from here or allow further browsing.
-    // For now, let's not navigate automatically from category page.
-    // router.push('/checkout');
+    // router.push('/checkout'); // No auto-navigation from category page
   }, [addProductToCart, toast, cartItems]);
 
   const handleAddToCart = useCallback((item) => {
@@ -120,7 +138,8 @@ export default function CategoryPage() {
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <Skeleton className="h-10 w-1/2 rounded-md" /> {/* Skeleton for title */}
+        <Skeleton className="h-10 w-1/2 rounded-md" />
+        <Skeleton className="h-10 w-1/3 rounded-md mt-4 mb-6" /> {/* Skeleton for search input area */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {renderSkeletons(8)}
         </div>
@@ -144,16 +163,40 @@ export default function CategoryPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">
-        {categoryDetails?.title || "Category"}
-      </h1>
-      <p className="text-muted-foreground">
-        Browse all VIP numbers in the "{categoryDetails?.title}" category.
-      </p>
+      <div>
+        <h1 className="text-3xl font-bold">
+          {categoryDetails?.title || "Category"}
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Browse all VIP numbers in the "{categoryDetails?.title}" category.
+        </p>
+      </div>
 
-      {categoryItems.length > 0 ? (
+      {categoryItems.length > 0 && (
+        <div className="my-6">
+          <Label htmlFor="category-search-input" className="text-lg font-semibold mb-2 block">
+            Search within "{categoryDetails?.title}"
+          </Label>
+          <Input
+            id="category-search-input"
+            type="text"
+            placeholder="Enter digits to search numbers..."
+            value={digitSearchTerm}
+            onChange={(e) => setDigitSearchTerm(e.target.value)}
+            className="max-w-md h-11 text-base"
+          />
+        </div>
+      )}
+
+      {categoryItems.length === 0 && !isLoading && (
+        <p className="text-center text-muted-foreground text-lg py-10">
+          No VIP numbers found in this category.
+        </p>
+      )}
+
+      {categoryItems.length > 0 && displayedItems.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {categoryItems.map((item) => (
+          {displayedItems.map((item) => (
             <VipNumberCard
               key={item.id}
               numberDetails={item}
@@ -164,11 +207,14 @@ export default function CategoryPage() {
             />
           ))}
         </div>
-      ) : (
+      )}
+
+      {categoryItems.length > 0 && displayedItems.length === 0 && digitSearchTerm.trim() !== '' && (
         <p className="text-center text-muted-foreground text-lg py-10">
-          No VIP numbers found in this category.
+          No VIP numbers found matching your search criteria in this category.
         </p>
       )}
+      
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => {
@@ -180,3 +226,4 @@ export default function CategoryPage() {
     </div>
   );
 }
+
