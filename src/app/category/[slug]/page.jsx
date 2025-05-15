@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation'; // Added useRouter import
 import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
@@ -25,6 +25,8 @@ const transformVipNumberData = (doc) => {
   return {
     id: doc.id,
     ...data,
+    price: parseFloat(data.price) || 0,
+    originalPrice: data.originalPrice ? parseFloat(data.originalPrice) : undefined,
   };
 };
 
@@ -38,6 +40,7 @@ const transformCategoryData = (doc) => {
 
 export default function CategoryPage() {
   const params = useParams();
+  const router = useRouter(); // Initialize router
   const { toast } = useToast();
   const { user } = useAuth();
   const { addToCart: addProductToCart, cartItems } = useCart();
@@ -153,7 +156,7 @@ export default function CategoryPage() {
       });
     }
     router.push('/checkout');
-  }, [addProductToCart, toast, cartItems, router]); // Added router to dependencies
+  }, [addProductToCart, toast, cartItems, router]);
 
   const handleAddToCart = useCallback((item) => {
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id);

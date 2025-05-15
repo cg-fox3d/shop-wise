@@ -18,6 +18,8 @@ const transformVipNumberData = (doc) => {
   return {
     id: doc.id,
     ...data,
+    price: parseFloat(data.price) || 0,
+    originalPrice: data.originalPrice ? parseFloat(data.originalPrice) : undefined,
   };
 };
 
