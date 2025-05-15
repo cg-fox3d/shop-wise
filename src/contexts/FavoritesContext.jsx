@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
@@ -32,9 +33,10 @@ export const FavoritesProvider = ({ children }) => {
   const addToFavorites = useCallback((product) => {
     setFavoriteItems(prevItems => {
       if (prevItems.find(item => item.id === product.id)) {
-        return prevItems; // Already a favorite
+        return prevItems; 
       }
-      return [...prevItems, product];
+      // Product object (VIP number or Pack) already contains its type
+      return [...prevItems, product]; 
     });
   }, []);
 

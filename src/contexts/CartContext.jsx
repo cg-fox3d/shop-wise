@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
@@ -8,9 +9,8 @@ const CART_STORAGE_KEY = 'shopwave_cart';
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false); // To prevent hydration issues
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load cart from localStorage on initial client render
   useEffect(() => {
     const storedCart = localStorage.getItem(CART_STORAGE_KEY);
     if (storedCart) {
@@ -18,15 +18,14 @@ export const CartProvider = ({ children }) => {
         setCartItems(JSON.parse(storedCart));
       } catch (error) {
         console.error("Failed to parse cart from localStorage", error);
-        localStorage.removeItem(CART_STORAGE_KEY); // Clear corrupted data
+        localStorage.removeItem(CART_STORAGE_KEY);
       }
     }
     setIsLoaded(true);
   }, []);
 
-  // Save cart to localStorage whenever it changes (only on client)
   useEffect(() => {
-    if (isLoaded) { // Only save after initial load
+    if (isLoaded) {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
     }
   }, [cartItems, isLoaded]);
@@ -35,11 +34,12 @@ export const CartProvider = ({ children }) => {
     setCartItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(item => item.id === product.id);
       if (existingItemIndex > -1) {
-        // Item already exists, do not add again (or maybe show a message)
-        console.log(`${product.name} is already in the cart.`);
-        return prevItems; // Return previous items unchanged
+        const itemName = product.type === 'pack' ? product.name : product.number;
+        console.log(`${itemName} is already in the cart.`);
+        return prevItems;
       } else {
-        // Add the new item with quantity 1
+        // For both individual numbers and packs, quantity is 1
+        // The 'type' field from product (e.g., 'vipNumber' or 'pack') is now part of the product object
         return [...prevItems, { ...product, quantity: 1 }];
       }
     });
@@ -50,7 +50,6 @@ export const CartProvider = ({ children }) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
   }, []);
 
-  // Update quantity - Keep quantity always 1 if item exists, or remove if <= 0
   const updateQuantity = useCallback((productId, quantity) => {
     if (quantity <= 0) {
       removeFromCart(productId);
@@ -69,12 +68,14 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   const getCartTotal = useCallback(() => {
-    // Since quantity is always 1, total is just the sum of prices
-    return cartItems.reduce((total, item) => total + item.price, 0);
+    return cartItems.reduce((total, item) => {
+      // Use packPrice for packs, price for individual numbers
+      const price = item.type === 'pack' ? item.packPrice : item.price;
+      return total + (price || 0); // Ensure price is a number
+    }, 0);
   }, [cartItems]);
 
   const getItemCount = useCallback(() => {
-      // Item count is simply the number of unique items in the cart
       return cartItems.length;
     }, [cartItems]);
 
@@ -89,9 +90,8 @@ export const CartProvider = ({ children }) => {
     getItemCount,
   };
 
-  // Render children only after loading state from localStorage
   if (!isLoaded) {
-    return null; // Or a loading indicator if preferred
+    return null;
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

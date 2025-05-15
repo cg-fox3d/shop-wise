@@ -3,20 +3,34 @@
  * @file CategorySection.jsx
  * @description A component to display a category of items with a title.
  * Items are displayed in a horizontally scrollable row with navigation arrows.
+ * Can display individual VIP numbers or number packs.
  */
 "use client";
 
 import React, { useRef } from 'react';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
+import NumberPackCard from '@/components/NumberPackCard'; // Added
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
+// Consider creating a NumberPackCardSkeleton if the layout is very different
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ITEMS_PER_SECTION = 10;
 const SCROLL_AMOUNT = 300; // Amount to scroll in pixels
 
-export default function CategorySection({ title, slug, items, isLoading, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
+export default function CategorySection({ 
+  title, 
+  slug, 
+  items, 
+  isLoading, 
+  categoryType = 'individual', // 'individual' or 'pack'
+  onBookNow, 
+  onAddToCart, 
+  onToggleFavorite, 
+  isFavorite,
+  cartItems // Pass cartItems for NumberPackCard
+}) {
   const scrollContainerRef = useRef(null);
   const safeItems = items || [];
 
@@ -38,24 +52,40 @@ export default function CategorySection({ title, slug, items, isLoading, onBookN
   const renderSkeletons = () => (
     Array.from({ length: 5 }).map((_, index) => (
       <div key={`skeleton-${index}`} className="flex-shrink-0">
-        <VipNumberCardSkeleton />
+        {/* Could conditionally render different skeletons based on categoryType if needed */}
+        <VipNumberCardSkeleton /> 
       </div>
     ))
   );
 
   const renderItems = () => (
     itemsToDisplay.map((item) => (
-      <div key={item.id} className="flex-shrink-0 w-[280px] md:w-[300px]"> {/* Fixed width for cards */}
-        <VipNumberCard
-          numberDetails={item}
-          onBookNow={onBookNow}
-          onAddToCart={onAddToCart}
-          onToggleFavorite={onToggleFavorite}
-          isFavorite={isFavorite(item.id)}
-        />
+      <div key={item.id} className="flex-shrink-0 w-[290px] md:w-[310px]"> {/* Adjusted width */}
+        {categoryType === 'pack' ? (
+          <NumberPackCard
+            packDetails={item}
+            onBookNow={onBookNow}
+            onAddToCart={onAddToCart}
+            onToggleFavorite={onToggleFavorite}
+            isFavorite={isFavorite(item.id)}
+            isInCart={cartItems?.some(cartItem => cartItem.id === item.id && cartItem.type === 'pack')}
+          />
+        ) : (
+          <VipNumberCard
+            numberDetails={item}
+            onBookNow={onBookNow}
+            onAddToCart={onAddToCart}
+            onToggleFavorite={onToggleFavorite}
+            isFavorite={isFavorite(item.id)}
+          />
+        )}
       </div>
     ))
   );
+
+  // Determine "See More" link based on category type
+  const seeMoreLink = categoryType === 'pack' ? `/category/${slug}?type=packs` : `/category/${slug}`;
+
 
   return (
     <section className="py-8">
@@ -74,7 +104,7 @@ export default function CategorySection({ title, slug, items, isLoading, onBookN
           )}
           {showSeeMoreButton && slug && (
             <Button variant="outline" asChild>
-              <Link href={`/category/${slug}`}>
+              <Link href={seeMoreLink}>
                 See More ({safeItems.length - ITEMS_PER_SECTION} more)
               </Link>
             </Button>

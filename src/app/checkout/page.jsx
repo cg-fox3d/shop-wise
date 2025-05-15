@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -11,6 +12,7 @@ import { createRazorpayOrder } from '@/services/razorpay';
 import { useToast } from "@/hooks/use-toast";
 import Script from 'next/script';
 import LoginModal from '@/components/LoginModal';
+import { Package } from 'lucide-react';
 
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
@@ -27,7 +29,6 @@ export default function CheckoutPage() {
   const amountInPaise = Math.round(cartTotal * 100);
 
   useEffect(() => {
-    // Redirect if cart is empty (unless payment is processing)
     if (cartItems.length === 0 && !loading) {
       toast({
         title: "Cart is empty",
@@ -37,11 +38,10 @@ export default function CheckoutPage() {
       router.push('/');
     }
 
-    // Prompt login if not authenticated and not loading auth state
     if (!authLoading && !user && cartItems.length > 0) {
       setIsLoginModalOpen(true);
     } else {
-      setIsLoginModalOpen(false); // Close modal if user logs in elsewhere
+      setIsLoginModalOpen(false);
     }
 
   }, [cartItems, router, toast, loading, user, authLoading]);
@@ -85,7 +85,22 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      const order = await createRazorpayOrder({ amount: amountInPaise, currency: 'INR' });
+      // Prepare item names for description
+      const itemNames = cartItems.map(item => item.type === 'pack' ? item.name : item.number).join(', ');
+      const transactionDescription = `Purchase of ${itemNames}`;
+
+
+      const order = await createRazorpayOrder({ 
+        amount: amountInPaise, 
+        currency: 'INR',
+        receipt: `receipt_user_${user.uid}_${Date.now()}`, // Example receipt
+        notes: { 
+          userId: user.uid, 
+          email: user.email,
+          itemCount: cartItems.length,
+          itemDetails: itemNames // Could be more detailed if needed
+        } 
+      });
 
       if (!order || !order.id) {
         throw new Error("Failed to create Razorpay order.");
@@ -95,24 +110,26 @@ export default function CheckoutPage() {
         key: RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: "INR",
-        name: "ShopWave",
-        description: "Test Transaction",
-        image: "/logo.svg",
+        name: "ShopWave VIP Numbers",
+        description: transactionDescription.substring(0, 250), // Max length for description
+        image: "/logo.svg", // Make sure you have a logo.svg in public folder
         order_id: order.id,
         handler: function (response) {
+          // Here, you would typically verify the payment on your backend
+          // For now, we directly go to success page
           router.push(`/payment/success?orderId=${response.razorpay_order_id}&paymentId=${response.razorpay_payment_id}`);
-          clearCart();
+          clearCart(); // Clear cart after successful redirection
         },
         prefill: {
-          name: user.displayName || "Test User",
-          email: user.email || "test.user@example.com",
-          contact: "9999999999"
+          name: user.displayName || "VIP Customer",
+          email: user.email,
+          contact: user.phoneNumber || "" // Add phone number if available
         },
         notes: {
-          address: "Razorpay Corporate Office"
+          address: "Online Purchase" // Or any other relevant note
         },
         theme: {
-          color: "#008080"
+          color: "#008080" // Your primary theme color
         },
         modal: {
           ondismiss: function () {
@@ -120,7 +137,7 @@ export default function CheckoutPage() {
             toast({
               title: "Payment Cancelled",
               description: "You closed the payment window.",
-              variant: "destructive",
+              variant: "destructive", // Or "default"
             });
             setLoading(false);
           }
@@ -136,6 +153,8 @@ export default function CheckoutPage() {
           variant: "destructive",
         });
         setLoading(false);
+        // Optionally, redirect to a payment failure page
+        // router.push(`/payment/failure?orderId=${order.id}&code=${response.error.code}&reason=${response.error.reason}`);
       });
       rzp.open();
 
@@ -182,15 +201,31 @@ export default function CheckoutPage() {
             <CardDescription>Review the items in your cart before proceeding.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cartItems.map((item) => (
-              <div key={item.id} className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
+            {cartItems.map((item) => {
+              const isPack = item.type === 'pack';
+              const name = isPack ? item.name : item.number;
+              const price = isPack ? item.packPrice : item.price;
+              const quantity = item.quantity || 1;
+
+              return (
+                <div key={item.id} className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium flex items-center">
+                      {isPack && <Package size={16} className="mr-2 text-muted-foreground" />}
+                      {name}
+                    </p>
+                    {isPack && item.numbers && (
+                        <ul className="text-xs text-muted-foreground list-disc list-inside pl-5">
+                            {item.numbers.slice(0,3).map((num, idx) => <li key={idx} className="truncate">{num.number}</li>)}
+                            {item.numbers.length > 3 && <li className="text-xs text-muted-foreground">...and {item.numbers.length - 3} more</li>}
+                        </ul>
+                    )}
+                    <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
+                  </div>
+                  <p className="font-medium">${(price * quantity).toFixed(2)}</p>
                 </div>
-                <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
-              </div>
-            ))}
+              );
+            })}
             <Separator />
             <div className="flex justify-between items-center font-bold text-lg">
               <span>Total</span>
@@ -201,12 +236,15 @@ export default function CheckoutPage() {
             <Button
               className="w-full"
               onClick={handlePayment}
-              disabled={loading || cartItems.length === 0 || !razorpayLoaded || !user}
+              disabled={loading || cartItems.length === 0 || !razorpayLoaded || !user || !RAZORPAY_KEY_ID}
             >
               {loading ? 'Processing...' : `Pay $${cartTotal.toFixed(2)} with Razorpay`}
             </Button>
           </CardFooter>
         </Card>
+        {!RAZORPAY_KEY_ID && (
+            <p className="text-center text-destructive text-sm mt-4">Razorpay payment gateway is not configured.</p>
+        )}
       </div>
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} onLoginSuccess={handleLoginSuccess} />
     </>
