@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, User, LogOut, LogIn, Heart } from 'lucide-react'; // Added Heart
+import { ShoppingCart, User, LogOut, LogIn, Heart, ShieldCheck } from 'lucide-react'; // Added Heart, ShieldCheck
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@shopwave.com";
 
 export default function Header() {
   const { getItemCount } = useCart();
@@ -36,6 +38,8 @@ export default function Header() {
   const itemCount = getItemCount();
   const favoritesCount = getFavoritesCount(); // Added
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  const isAdmin = user && user.email === ADMIN_EMAIL;
 
   const handleLogout = async () => {
     try {
@@ -134,6 +138,14 @@ export default function Header() {
                      </div>
                    </DropdownMenuLabel>
                    <DropdownMenuSeparator />
+                   {isAdmin && (
+                     <DropdownMenuItem asChild>
+                       <Link href="/admin/dashboard">
+                         <ShieldCheck className="mr-2 h-4 w-4" />
+                         <span>Admin Panel</span>
+                       </Link>
+                     </DropdownMenuItem>
+                   )}
                    <DropdownMenuItem onClick={handleLogout}>
                      <LogOut className="mr-2 h-4 w-4" />
                      <span>Log out</span>
@@ -153,3 +165,4 @@ export default function Header() {
     </>
   );
 }
+
