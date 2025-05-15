@@ -85,20 +85,24 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // Prepare item names for description
-      const itemNames = cartItems.map(item => item.type === 'pack' ? item.name : item.number).join(', ');
-      const transactionDescription = `Purchase of ${itemNames}`;
+      const itemDescriptions = cartItems.map(item => {
+        if (item.type === 'pack' && item.selectedNumbers) {
+          return `${item.name} (Selection: ${item.selectedNumbers.length} numbers)`;
+        }
+        return item.number || item.name; // Fallback to name for other types
+      }).join(', ');
+      const transactionDescription = `Purchase of ${itemDescriptions}`;
 
 
       const order = await createRazorpayOrder({ 
         amount: amountInPaise, 
         currency: 'INR',
-        receipt: `receipt_user_${user.uid}_${Date.now()}`, // Example receipt
+        receipt: `receipt_user_${user.uid}_${Date.now()}`,
         notes: { 
           userId: user.uid, 
           email: user.email,
-          itemCount: cartItems.length,
-          itemDetails: itemNames // Could be more detailed if needed
+          itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+          itemDetails: itemDescriptions 
         } 
       });
 
@@ -111,25 +115,23 @@ export default function CheckoutPage() {
         amount: order.amount,
         currency: "INR",
         name: "ShopWave VIP Numbers",
-        description: transactionDescription.substring(0, 250), // Max length for description
-        image: "/logo.svg", // Make sure you have a logo.svg in public folder
+        description: transactionDescription.substring(0, 250), 
+        image: "/logo.svg",
         order_id: order.id,
         handler: function (response) {
-          // Here, you would typically verify the payment on your backend
-          // For now, we directly go to success page
           router.push(`/payment/success?orderId=${response.razorpay_order_id}&paymentId=${response.razorpay_payment_id}`);
-          clearCart(); // Clear cart after successful redirection
+          clearCart();
         },
         prefill: {
           name: user.displayName || "VIP Customer",
           email: user.email,
-          contact: user.phoneNumber || "" // Add phone number if available
+          contact: user.phoneNumber || ""
         },
         notes: {
-          address: "Online Purchase" // Or any other relevant note
+          address: "Online Purchase"
         },
         theme: {
-          color: "#008080" // Your primary theme color
+          color: "#008080" 
         },
         modal: {
           ondismiss: function () {
@@ -137,7 +139,7 @@ export default function CheckoutPage() {
             toast({
               title: "Payment Cancelled",
               description: "You closed the payment window.",
-              variant: "destructive", // Or "default"
+              variant: "destructive",
             });
             setLoading(false);
           }
@@ -153,8 +155,6 @@ export default function CheckoutPage() {
           variant: "destructive",
         });
         setLoading(false);
-        // Optionally, redirect to a payment failure page
-        // router.push(`/payment/failure?orderId=${order.id}&code=${response.error.code}&reason=${response.error.reason}`);
       });
       rzp.open();
 
@@ -202,22 +202,22 @@ export default function CheckoutPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {cartItems.map((item) => {
-              const isPack = item.type === 'pack';
-              const name = isPack ? item.name : item.number;
-              const price = isPack ? item.packPrice : item.price;
+              const isPackSelection = item.type === 'pack' && item.selectedNumbers;
+              const name = isPackSelection ? item.name : item.number;
+              const price = item.price; // Already calculated for packs
               const quantity = item.quantity || 1;
 
               return (
-                <div key={item.id} className="flex justify-between items-center">
+                <div key={item.cartId} className="flex justify-between items-center">
                   <div>
                     <p className="font-medium flex items-center">
-                      {isPack && <Package size={16} className="mr-2 text-muted-foreground" />}
-                      {name}
+                      {isPackSelection && <Package size={16} className="mr-2 text-muted-foreground" />}
+                      {name} {isPackSelection ? `(Selection)` : ''}
                     </p>
-                    {isPack && item.numbers && (
+                    {isPackSelection && item.selectedNumbers && (
                         <ul className="text-xs text-muted-foreground list-disc list-inside pl-5">
-                            {item.numbers.slice(0,3).map((num, idx) => <li key={idx} className="truncate">{num.number}</li>)}
-                            {item.numbers.length > 3 && <li className="text-xs text-muted-foreground">...and {item.numbers.length - 3} more</li>}
+                            {item.selectedNumbers.slice(0,3).map((num, idx) => <li key={idx} className="truncate">{num.number}</li>)}
+                            {item.selectedNumbers.length > 3 && <li className="text-xs text-muted-foreground">...and {item.selectedNumbers.length - 3} more</li>}
                         </ul>
                     )}
                     <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>

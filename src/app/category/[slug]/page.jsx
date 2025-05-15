@@ -5,11 +5,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import VipNumberCard from '@/components/VipNumberCard';
-import NumberPackCard from '@/components/NumberPackCard'; // Added
+import NumberPackCard from '@/components/NumberPackCard';
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Make sure Label is imported
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
@@ -17,10 +17,10 @@ import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDoc, doc, limit } from 'firebase/firestore'; // Added getDoc, doc
+import { collection, query, where, onSnapshot, getDoc, doc, limit } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-// Helper to transform Firestore doc data
 const transformVipNumberData = (doc) => {
   const data = doc.data();
   return {
@@ -39,11 +39,16 @@ const transformNumberPackData = (doc) => {
     ...data,
     packPrice: parseFloat(data.packPrice) || 0,
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
-    type: 'pack'
+    type: 'pack',
+    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => ({
+        ...num,
+        price: parseFloat(num.price) || 0,
+        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`
+    })) : []
   };
 };
 
-const transformCategoryData = (docSnapshot) => { // Changed to accept docSnapshot
+const transformCategoryData = (docSnapshot) => {
   const data = docSnapshot.data();
   return {
     id: docSnapshot.id,
@@ -54,7 +59,7 @@ const transformCategoryData = (docSnapshot) => { // Changed to accept docSnapsho
 export default function CategoryPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams(); // To check for ?type=packs
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { user } = useAuth();
   const { addToCart, cartItems } = useCart();
@@ -63,20 +68,20 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
-  const [categoryItems, setCategoryItems] = useState([]); // Can be VIP numbers or packs
+  const [categoryItems, setCategoryItems] = useState([]);
   const [displayedItems, setDisplayedItems] = useState([]);
   const [isLoadingCategory, setIsLoadingCategory] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
+  const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); // For pack quantity filter
 
   const slug = params?.slug;
   const categoryDisplayType = searchParams.get('type') === 'packs' ? 'pack' : 'individual';
+  const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); // 2 to 7
 
-  // Fetch category details
   useEffect(() => {
     if (slug) {
       setIsLoadingCategory(true);
-      // Firestore query for a single category by slug
       const q = query(collection(db, "categories"), where("slug", "==", slug), limit(1));
       
       const unsubscribeCategory = onSnapshot(q, (querySnapshot) => {
@@ -89,7 +94,7 @@ export default function CategoryPage() {
             description: `The category "${slug}" does not exist.`,
             variant: "destructive",
           });
-          setCategoryDetails(null); // Explicitly set to null
+          setCategoryDetails(null);
         }
         setIsLoadingCategory(false);
       }, (error) => {
@@ -97,24 +102,21 @@ export default function CategoryPage() {
         toast({ title: "Error", description: "Could not load category details.", variant: "destructive" });
         setIsLoadingCategory(false);
       });
-
       return () => unsubscribeCategory();
     }
   }, [slug, toast]);
 
-  // Fetch items for the category
   useEffect(() => {
-    if (slug && categoryDetails !== undefined) { // Proceed if slug is present and categoryDetails fetch attempt is done
+    if (slug && categoryDetails !== undefined) {
       setIsLoadingItems(true);
       let itemsQuery;
-
       if (categoryDisplayType === 'pack') {
         itemsQuery = query(
           collection(db, "numberPacks"), 
           where("categorySlug", "==", slug),
           where("status", "==", "available")
         );
-      } else { // Default to vipNumbers
+      } else {
         itemsQuery = query(
           collection(db, "vipNumbers"), 
           where("categorySlug", "==", slug),
@@ -130,41 +132,37 @@ export default function CategoryPage() {
         setIsLoadingItems(false);
       }, (error) => {
         console.error(`Error fetching items for category ${slug} (type: ${categoryDisplayType}):`, error);
-        toast({
-          title: "Error",
-          description: `Could not load items for category "${slug}".`,
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: `Could not load items for category "${slug}".`, variant: "destructive" });
         setCategoryItems([]);
         setIsLoadingItems(false);
       });
-
       return () => unsubscribeItems();
     } else if (!slug) {
-        setIsLoadingItems(false); // If no slug, no items to load
+        setIsLoadingItems(false);
     }
   }, [slug, categoryDetails, categoryDisplayType, toast]);
 
-  // Filter items based on search term
   useEffect(() => {
     if (isLoadingItems) return;
 
-    if (digitSearchTerm.trim() === '') {
-      setDisplayedItems(categoryItems);
-    } else {
-      const filtered = categoryItems.filter(item => {
+    let filtered = [...categoryItems];
+
+    if (categoryDisplayType === 'pack' && selectedPackQuantity) {
+      filtered = filtered.filter(item => item.numbers && item.numbers.length === parseInt(selectedPackQuantity));
+    }
+
+    if (digitSearchTerm.trim() !== '') {
+      filtered = filtered.filter(item => {
         if (item.type === 'pack') {
-          // Search in pack name or description, or numbers within the pack
           return item.name?.toLowerCase().includes(digitSearchTerm.toLowerCase().trim()) ||
                  item.description?.toLowerCase().includes(digitSearchTerm.toLowerCase().trim()) ||
                  item.numbers?.some(numObj => numObj.number.toLowerCase().includes(digitSearchTerm.toLowerCase().trim()));
         }
-        // For individual VIP numbers, search in the number string
         return item.number?.toLowerCase().includes(digitSearchTerm.toLowerCase().trim());
       });
-      setDisplayedItems(filtered);
     }
-  }, [digitSearchTerm, categoryItems, isLoadingItems]);
+    setDisplayedItems(filtered);
+  }, [digitSearchTerm, categoryItems, isLoadingItems, categoryDisplayType, selectedPackQuantity]);
 
 
   const handleLoginSuccess = () => {
@@ -187,43 +185,32 @@ export default function CategoryPage() {
 
   const handleBookNow = useCallback((item) => {
     const itemName = item.type === 'pack' ? item.name : item.number;
-    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
-    if (!isInCart) {
-      addToCart(item);
-      toast({
-        title: "Added to Cart",
-        description: `${itemName} has been added to your cart.`,
-      });
-    }
+    addToCart(item);
+    toast({
+      title: "Added to Cart",
+      description: `${itemName} has been added to your cart. Proceeding to checkout.`,
+    });
     router.push('/checkout');
-  }, [addToCart, toast, cartItems, router]);
+  }, [addToCart, toast, router]);
 
   const handleAddToCart = useCallback((item) => {
-    const itemName = item.type === 'pack' ? item.name : item.number;
-    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
-    if (isInCart) {
-      toast({
-        title: "Already in Cart",
-        description: `${itemName} is already in your cart.`,
-      });
-      return;
-    }
-    addToCart(item);
+    const itemName = item.type === 'pack' ? `${item.name} (Selection)` : item.number;
+    addToCart(item); // CartContext now handles selectedNumbers for packs
     toast({
       title: "Added to Cart",
       description: `${itemName} has been added to your cart.`,
     });
-  }, [addToCart, toast, cartItems]);
+  }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    toggleFavorite(item);
+    toggleFavorite(item); // Favorites still use main item ID
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
 
   const renderSkeletons = (count) => (
     Array.from({ length: count }).map((_, index) => (
-      <VipNumberCardSkeleton key={`skeleton-${index}`} />
+      <VipNumberCardSkeleton key={`skeleton-${index}`} /> // Consider pack skeleton if very different
     ))
   );
 
@@ -241,16 +228,12 @@ export default function CategoryPage() {
     );
   }
   
-  if (!categoryDetails && !isLoadingCategory) { // Check after loading attempts
+  if (!categoryDetails && !isLoadingCategory) {
     return (
       <div className="text-center py-20">
         <h1 className="text-2xl font-bold mb-4">Category Not Found</h1>
-        <p className="text-muted-foreground mb-6">
-          The category "{slug}" does not exist or could not be loaded.
-        </p>
-        <Button asChild>
-          <Link href="/">Go to Homepage</Link>
-        </Button>
+        <p className="text-muted-foreground mb-6">The category "{slug}" does not exist.</p>
+        <Button asChild><Link href="/">Go to Homepage</Link></Button>
       </div>
     );
   }
@@ -258,34 +241,47 @@ export default function CategoryPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">
-          {categoryDetails?.title || "Category"}
-        </h1>
+        <h1 className="text-3xl font-bold">{categoryDetails?.title || "Category"}</h1>
         <p className="text-muted-foreground mt-1">
-          Browse all {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} in the "{categoryDetails?.title}" category.
+          Browse {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} in "{categoryDetails?.title}".
         </p>
       </div>
 
-      {categoryItems.length > 0 && (
-        <div className="my-6">
-          <Label htmlFor="category-search-input" className="text-lg font-semibold mb-2 block">
-            Search within "{categoryDetails?.title}"
-          </Label>
-          <Input
-            id="category-search-input"
-            type="text"
-            placeholder={categoryDisplayType === 'pack' ? "Search packs by name, number..." : "Enter digits to search numbers..."}
-            value={digitSearchTerm}
-            onChange={(e) => setDigitSearchTerm(e.target.value)}
-            className="max-w-md h-11 text-base"
-          />
+      {(categoryItems.length > 0 || digitSearchTerm) && (
+        <div className="my-6 p-4 bg-card border rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-grow w-full md:w-auto">
+            <Label htmlFor="category-search-input" className="text-base font-semibold mb-1 block">
+              Search within "{categoryDetails?.title}"
+            </Label>
+            <Input
+              id="category-search-input"
+              type="text"
+              placeholder={categoryDisplayType === 'pack' ? "Search pack name, number..." : "Enter digits..."}
+              value={digitSearchTerm}
+              onChange={(e) => setDigitSearchTerm(e.target.value)}
+              className="max-w-md h-10 text-sm"
+            />
+          </div>
+          {categoryDisplayType === 'pack' && (
+            <div className="w-full md:w-auto">
+              <Label htmlFor={`category-pack-qty-select-${slug}`} className="text-base font-semibold mb-1 block">Numbers in Pack:</Label>
+              <Select
+                value={selectedPackQuantity || ""}
+                onValueChange={(value) => setSelectedPackQuantity(value === "all" ? null : value)}
+              >
+                <SelectTrigger id={`category-pack-qty-select-${slug}`} className="w-full md:w-[120px] h-10 text-sm">
+                  <SelectValue placeholder="Any Qty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Qty</SelectItem>
+                  {numQuantityOptions.map(qty => (
+                    <SelectItem key={qty} value={String(qty)}>{qty}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
-      )}
-
-      {categoryItems.length === 0 && !isLoadingItems && (
-        <p className="text-center text-muted-foreground text-lg py-10">
-          No {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found in this category.
-        </p>
       )}
 
       {displayedItems.length > 0 && (
@@ -293,13 +289,12 @@ export default function CategoryPage() {
           {displayedItems.map((item) => (
             item.type === 'pack' ? (
               <NumberPackCard
-                key={item.id}
+                key={item.id + (item.selectedNumbers ? JSON.stringify(item.selectedNumbers.map(sn => sn.id)) : '')} // Key needs to be unique for selections
                 packDetails={item}
                 onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
                 onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
-                onToggleFavorite={handleToggleFavorite}
+                onToggleFavorite={handleToggleFavorite} // Favorites still use main pack ID
                 isFavorite={isFavorite(item.id)}
-                isInCart={cartItems.some(ci => ci.id === item.id && ci.type === 'pack')}
               />
             ) : (
               <VipNumberCard
@@ -314,19 +309,16 @@ export default function CategoryPage() {
           ))}
         </div>
       )}
-
-      {categoryItems.length > 0 && displayedItems.length === 0 && digitSearchTerm.trim() !== '' && (
+      
+      {!isLoadingItems && displayedItems.length === 0 && (
         <p className="text-center text-muted-foreground text-lg py-10">
-          No {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found matching your search criteria in this category.
+          No {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found matching your criteria in this category.
         </p>
       )}
       
       <LoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => {
-          setIsLoginModalOpen(false);
-          setPendingAction(null);
-        }}
+        onClose={() => { setIsLoginModalOpen(false); setPendingAction(null); }}
         onLoginSuccess={handleLoginSuccess}
       />
     </div>

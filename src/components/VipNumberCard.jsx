@@ -4,11 +4,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Crown, ShoppingCart, Heart } from 'lucide-react'; // Removed Info
+import { Crown, ShoppingCart, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// CountdownTimer component has been removed
 
 export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, onToggleFavorite, isFavorite }) {
   const {
@@ -20,7 +19,6 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
     sumOfDigits,
     isVip,
     discount,
-    // expiryTimestamp, // Removed
     similarNumbersLink = "#"
   } = numberDetails;
 
@@ -28,7 +26,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
 
   return (
     <TooltipProvider>
-      <Card className="w-full max-w-xs flex-shrink-0 overflow-hidden rounded-lg shadow-lg bg-card transform transition-all hover:scale-105">
+      <Card className="w-full max-w-xs flex-shrink-0 overflow-hidden rounded-lg shadow-lg bg-card transform transition-all hover:scale-105 flex flex-col">
         <CardHeader className="p-0 relative">
           <div className="bg-primary/90 text-primary-foreground p-3 flex justify-between items-center">
             <span className="font-semibold text-sm">
@@ -38,7 +36,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               {isVip && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Crown className="h-5 w-5 text-yellow-400 cursor-pointer" />
+                     <Badge variant="warning" className="text-xs border-yellow-400 text-yellow-400 bg-transparent group-hover:border-yellow-300 group-hover:text-yellow-300">VIP</Badge>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>VIP Number</p>
@@ -47,7 +45,9 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <ShoppingCart onClick={() => onAddToCart(numberDetails)} className="h-5 w-5 cursor-pointer hover:text-accent-foreground/80" />
+                  <Button variant="ghost" size="icon" onClick={() => onAddToCart(numberDetails)} className="h-7 w-7 p-1 rounded-full hover:bg-white/20 text-primary-foreground">
+                    <ShoppingCart className="h-5 w-5" />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Add to Cart</p>
@@ -55,10 +55,11 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Heart
-                    onClick={() => onToggleFavorite(numberDetails)}
-                    className={`h-5 w-5 cursor-pointer hover:text-red-400 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`}
-                  />
+                  <Button variant="ghost" size="icon" onClick={() => onToggleFavorite(numberDetails)} className={`h-7 w-7 p-1 rounded-full hover:bg-white/20 ${isFavorite ? 'text-red-500' : 'text-primary-foreground'}`}>
+                    <Heart
+                      className={`h-5 w-5 hover:text-red-400 ${isFavorite ? 'fill-red-500' : ''}`}
+                    />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</p>
@@ -66,22 +67,23 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
               </Tooltip>
             </div>
           </div>
-          {/* CountdownTimer removed from here */}
         </CardHeader>
-        <CardContent className="p-4 text-center space-y-3 pt-5"> {/* Adjusted pt-5 from pt-8 */}
-          <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <a href={similarNumbersLink} className="hover:underline hover:text-primary">Similar Numbers</a>
-            <div className="text-right">
-              <p>Total-{totalDigits || 'N/A'}</p>
-              <p>Sum-{sumOfDigits || 'N/A'}</p>
+        <CardContent className="p-4 text-center space-y-3 pt-5 flex-grow flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <a href={similarNumbersLink} className="hover:underline hover:text-primary">Similar Numbers</a>
+              <div className="text-right">
+                <p>Total-{totalDigits || 'N/A'}</p>
+                <p>Sum-{sumOfDigits || 'N/A'}</p>
+              </div>
             </div>
+            
+            <h3 className="text-3xl font-bold tracking-tighter text-foreground my-3">
+              {formattedNumber}
+            </h3>
           </div>
-          
-          <h3 className="text-3xl font-bold tracking-tighter text-foreground my-3">
-            {formattedNumber}
-          </h3>
 
-          <div className="flex justify-between items-end">
+          <div className="flex justify-between items-end mt-auto">
             <div className="text-left">
               {originalPrice && originalPrice > price && (
                 <p className="text-sm text-muted-foreground line-through">

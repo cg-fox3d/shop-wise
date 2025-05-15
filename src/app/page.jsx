@@ -29,9 +29,15 @@ const transformNumberPackData = (doc) => {
   return {
     id: doc.id,
     ...data,
-    packPrice: parseFloat(data.packPrice) || 0,
+    packPrice: parseFloat(data.packPrice) || 0, // Price for the whole pack if bought as is
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
-    type: 'pack' // Explicitly define type
+    type: 'pack', // Explicitly define type
+    // Ensure numbers array and their prices are correctly formatted
+    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => ({
+        ...num,
+        price: parseFloat(num.price) || 0, // Ensure individual number price is float
+        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}` // Ensure num has an id
+    })) : []
   };
 };
 
@@ -40,24 +46,22 @@ const transformCategoryData = (doc) => {
   return {
     id: doc.id,
     ...data,
-    // type: data.type || 'individual' // Default to individual if type not specified
   };
 }
 
 export default function Home() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isLoadingItems, setIsLoadingItems] = useState(true); // Combined loading for numbers and packs
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [categoriesData, setCategoriesData] = useState([]);
   
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
-  const { addToCart, cartItems } = useCart(); // Renamed from addProductToCart
+  const { addToCart, cartItems } = useCart();
   const { toggleFavorite, isFavorite } = useFavorites();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  // Fetch categories and their items
   useEffect(() => {
     setIsLoadingCategories(true);
     setIsLoadingItems(true);
@@ -78,7 +82,7 @@ export default function Home() {
           );
           const packSnapshot = await getDocs(itemsQuery);
           items = packSnapshot.docs.map(transformNumberPackData);
-        } else { // Default to vipNumbers
+        } else { 
           itemsQuery = query(
             collection(db, "vipNumbers"), 
             where("categorySlug", "==", category.slug),
@@ -100,7 +104,6 @@ export default function Home() {
           description: "Could not load items for some categories.",
           variant: "destructive",
         });
-        // Set categoriesData with empty items or previously fetched data if partial success is desired
         setCategoriesData(fetchedCategories.map(cat => ({ ...cat, items: [] })));
       } finally {
         setIsLoadingCategories(false);
@@ -140,37 +143,32 @@ export default function Home() {
   };
 
   const handleBookNow = useCallback((item) => {
+    // If item is a pack, it will include selectedNumbers and a calculated price
     const itemName = item.type === 'pack' ? item.name : item.number;
-    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
-    if (!isInCart) {
-      addToCart(item); // addToCart now handles both types
-       toast({
-        title: "Added to Cart",
-        description: `${itemName} has been added to your cart.`,
-      });
-    }
+    // For packs with selections, cart logic might be more complex than just checking item.id
+    // For now, assume addToCart handles uniqueness if needed, or a new item is created for new selections
+    addToCart(item); 
+    toast({
+      title: "Added to Cart",
+      description: `${itemName} (selection) has been added to your cart.`,
+    });
     router.push('/checkout');
-  }, [addToCart, router, toast, cartItems]);
+  }, [addToCart, router, toast]);
 
   const handleAddToCart = useCallback((item) => {
-    const itemName = item.type === 'pack' ? item.name : item.number;
-    const isInCart = cartItems.some(cartItem => cartItem.id === item.id);
-    if (isInCart) {
-      toast({
-        title: "Already in Cart",
-        description: `${itemName} is already in your cart.`,
-      });
-      return;
-    }
-    addToCart(item); // addToCart now handles both types
+    // Item for 'pack' type will have 'selectedNumbers' and dynamic 'price'
+    const itemName = item.type === 'pack' ? `${item.name} (Selection)` : item.number;
+    // addToCart in CartContext should handle uniqueness logic for packs with selections
+    addToCart(item);
     toast({
       title: "Added to Cart",
       description: `${itemName} has been added to your cart.`,
     });
-  }, [addToCart, toast, cartItems]);
+  }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    toggleFavorite(item); // toggleFavorite now handles both types
+    // Favorites will still target the main pack/item ID, not specific selections for simplicity
+    toggleFavorite(item); 
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
@@ -194,7 +192,7 @@ export default function Home() {
               title="Loading Category..."
               items={[]}
               isLoading={true}
-              categoryType="individual" // Default for skeleton
+              categoryType="individual" 
             />
           ))
         )}
@@ -207,13 +205,12 @@ export default function Home() {
             title={category.title}
             slug={category.slug}
             items={category.items || []}
-            isLoading={overallLoading && category.items === undefined} // Pass loading state per category if items are still loading
-            categoryType={category.type || 'individual'} // Pass category type
+            isLoading={overallLoading && category.items === undefined}
+            categoryType={category.type || 'individual'}
             onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
             onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={(itemId) => isFavorite(itemId)}
-            // Pass cartItems to check if pack is in cart for NumberPackCard
             cartItems={cartItems} 
           />
         ))}
