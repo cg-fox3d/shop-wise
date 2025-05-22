@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -18,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, User, Phone } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -26,12 +27,14 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Invalid email address" }),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits" }).regex(/^\d+$/, {message: "Phone number must contain only digits"}),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
-  path: ["confirmPassword"], // path of error
+  path: ["confirmPassword"],
 });
 
 
@@ -39,7 +42,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const { login, signup } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("login"); // 'login' or 'signup'
+  const [activeTab, setActiveTab] = useState("login");
 
   const { register: registerLogin, handleSubmit: handleLoginSubmit, formState: { errors: loginErrors }, reset: resetLogin } = useForm({
     resolver: zodResolver(loginSchema),
@@ -53,8 +56,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     setLoading(true);
     try {
       await login(data.email, data.password);
-      onLoginSuccess(); // Call the success callback
-      resetLogin(); // Reset form on success
+      // onLoginSuccess is called from AuthContext after email verification check
+      // resetLogin(); // Reset form on success
     } catch (error) {
       console.error("Login failed:", error);
       toast({
@@ -70,11 +73,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const onSignup = async (data) => {
       setLoading(true);
       try {
-        await signup(data.email, data.password);
-        toast({ title: "Signup Successful", description: "Please log in with your new account." });
-        setActiveTab("login"); // Switch to login tab after successful signup
-        resetSignup(); // Reset signup form
-        resetLogin({ email: data.email }); // Pre-fill login email
+        await signup(data.email, data.password, data.name, data.phoneNumber);
+        // Toast for verification is handled in AuthContext
+        setActiveTab("login"); 
+        resetSignup(); 
+        resetLogin({ email: data.email }); 
       } catch (error) {
         console.error("Signup failed:", error);
         toast({
@@ -90,9 +93,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleOpenChange = (open) => {
     if (!open) {
-      onClose(); // Call the onClose callback when dialog closes
-      resetLogin(); // Reset forms when closing
+      onClose(); 
+      resetLogin(); 
       resetSignup();
+      setActiveTab("login"); // Reset to login tab on close
     }
   };
 
@@ -122,7 +126,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                          type="email"
                          placeholder="m@example.com"
                          {...registerLogin("email")}
-                         className="pl-8" // Add padding for icon
+                         className="pl-8"
                        />
                    </div>
                    {loginErrors.email && <p className="text-xs text-destructive">{loginErrors.email.message}</p>}
@@ -146,6 +150,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <TabsContent value="signup" className="mt-0">
             <form onSubmit={handleSignupSubmit(onSignup)} className="grid gap-4 py-4">
               <div className="grid gap-2">
+                <Label htmlFor="signup-name">Full Name</Label>
+                <div className="relative">
+                   <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="John Doe"
+                      {...registerSignup("name")}
+                      className="pl-8"
+                   />
+                </div>
+                {signupErrors.name && <p className="text-xs text-destructive">{signupErrors.name.message}</p>}
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <div className="relative">
                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -158,6 +176,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                    />
                 </div>
                 {signupErrors.email && <p className="text-xs text-destructive">{signupErrors.email.message}</p>}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="signup-phone">Phone Number</Label>
+                <div className="relative">
+                   <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input
+                      id="signup-phone"
+                      type="tel"
+                      placeholder="1234567890"
+                      {...registerSignup("phoneNumber")}
+                      className="pl-8"
+                   />
+                </div>
+                {signupErrors.phoneNumber && <p className="text-xs text-destructive">{signupErrors.phoneNumber.message}</p>}
               </div>
               <div className="grid gap-2">
                  <Label htmlFor="signup-password">Password</Label>
