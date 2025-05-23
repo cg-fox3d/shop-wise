@@ -10,10 +10,11 @@ import {
   signOut,
   updateProfile,
   sendEmailVerification,
-  getIdToken
+  getIdToken // Added getIdToken
 } from 'firebase/auth';
 import { firebaseApp, db } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+// Firestore direct writes are removed as per new requirement for backend functions
+// import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'; 
 import { useToast } from "@/hooks/use-toast";
 
 const AuthContext = createContext(undefined);
@@ -26,18 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        if (currentUser.emailVerified) {
-          const userDocRef = doc(db, "users", currentUser.uid);
-          try {
-            // This update is optimistic. If the doc doesn't exist, it won't create it.
-            // The backend function should be the primary source for creating the user doc.
-            await updateDoc(userDocRef, { isVerified: true, lastLogin: serverTimestamp() });
-          } catch (error) {
-            // console.warn("Could not update isVerified/lastLogin on auth state change (doc might not exist yet):", error.message);
-          }
-        }
-      }
+      // Basic user object update, backend handles Firestore doc updates
       setUser(currentUser);
       setLoading(false);
     });
@@ -58,18 +48,32 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Email not verified.");
       }
       
-      const userDocRef = doc(db, "users", userCredential.user.uid);
+      // Call backend to update lastLogin
       try {
-        await updateDoc(userDocRef, {
-          lastLogin: serverTimestamp(),
-          isVerified: true 
+        const idToken = await getIdToken(userCredential.user);
+        const response = await fetch('https://numbersguru.com/.netlify/functions/update-user-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ uid: userCredential.user.uid }) // Send UID for explicitness
         });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update user login time via backend.');
+        }
+        // console.log("User login time updated via backend successfully.");
         toast({ title: "Login Successful" });
-      } catch (error) {
-        console.error("Error updating lastLogin or isVerified:", error);
-        // If the document doesn't exist here, it means the backend function might not have created it yet.
-        // This is a potential issue to handle based on your backend implementation.
-        toast({ title: "Login Successful (Note: User details might still be syncing)" });
+      } catch (backendError) {
+        console.error("Error calling backend to update user login:", backendError);
+        toast({ 
+          title: "Login Partially Successful", 
+          description: "Could not update login time. Please contact support if issues persist.",
+          variant: "destructive"
+        });
+        // Proceed with login even if backend update fails for now
       }
     }
     return userCredential;
@@ -81,47 +85,64 @@ export const AuthProvider = ({ children }) => {
 
     if (firebaseUser) {
       await updateProfile(firebaseUser, { displayName: name });
-      await sendEmailVerification(firebaseUser);
-      
-      toast({
-        title: "Verification Email Sent",
-        description: "Please check your email to verify your account. After verification, your account details will be fully set up.",
-        duration: 7000,
-      });
 
-      // IMPORTANT: Backend User Creation Step
-      // The user document in Firestore (with uid, name, email, phoneNumber, isVerified: false, 
-      // createdAt, registeredOn, role: "customer") should now be created by a backend function.
-      // You would typically call your backend function here, passing the firebaseUser.uid or ID token, 
-      // name, and phoneNumber.
-      // Example (conceptual):
-      /*
+      // Call backend to save user details
+      let backendUserSaved = false;
       try {
         const idToken = await getIdToken(firebaseUser);
-        const response = await fetch('/api/create-user', { // Your backend endpoint
+        const response = await fetch('https://numbersguru.com/.netlify/functions/save-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`
           },
-          body: JSON.stringify({ name, phoneNumber, email: firebaseUser.email, uid: firebaseUser.uid })
+          body: JSON.stringify({ 
+            uid: firebaseUser.uid, 
+            email: firebaseUser.email, 
+            name, 
+            phoneNumber 
+          })
         });
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Backend user creation failed');
         }
-        console.log("Backend user creation initiated successfully.");
+        // console.log("Backend user creation/save initiated successfully.");
+        backendUserSaved = true;
       } catch (backendError) {
-        console.error("Error calling backend to create user:", backendError);
-        // Handle this error appropriately - maybe log it, inform the user,
-        // or queue the user creation for a retry.
-        // For now, we'll proceed with signing out the user as email verification is key.
+        console.error("Error calling backend to save user:", backendError);
+        toast({
+          title: "Signup Incomplete",
+          description: `Account creation failed during data save: ${backendError.message}. Please try again.`,
+          variant: "destructive",
+          duration: 7000,
+        });
+        // Optionally, delete the Firebase Auth user if backend save fails critically
+        // await firebaseUser.delete(); 
+        // For now, we'll proceed to send verification email but warn user.
       }
-      */
+      
+      await sendEmailVerification(firebaseUser);
+      
+      if (backendUserSaved) {
+        toast({
+          title: "Verification Email Sent",
+          description: "Please check your email to verify your account. After verification, your account details will be fully set up.",
+          duration: 7000,
+        });
+      } else {
+         toast({
+          title: "Verification Email Sent (Action Required)",
+          description: "Verification email sent, but there was an issue saving your details. Please contact support if login issues persist after verification.",
+          variant: "destructive",
+          duration: 10000,
+        });
+      }
       
       await signOut(auth); // Sign out the user immediately after signup, forcing them to verify
     }
-    return userCredential; // Return the original credential for potential further frontend use if needed
+    return userCredential;
   }, [auth, toast]);
 
   const logout = useCallback(async () => {
