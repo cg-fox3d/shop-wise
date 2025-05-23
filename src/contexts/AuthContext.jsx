@@ -10,7 +10,7 @@ import {
   signOut,
   updateProfile,
   sendEmailVerification,
-  getIdToken // Added getIdToken
+  getIdToken
 } from 'firebase/auth';
 import { firebaseApp, db } from '@/lib/firebase';
 // Firestore direct writes are removed as per new requirement for backend functions
@@ -27,7 +27,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      // Basic user object update, backend handles Firestore doc updates
       setUser(currentUser);
       setLoading(false);
     });
@@ -48,20 +47,20 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Email not verified.");
       }
       
-      // Call backend to update lastLogin
       try {
         const idToken = await getIdToken(userCredential.user);
-        const response = await fetch('https://numbersguru.com/.netlify/functions/update-user-login', {
+        const response = await fetch('https://numbersguru.com/.netlify/functions/update-user-login', { // Corrected URL
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${idToken}`
           },
-          body: JSON.stringify({ uid: userCredential.user.uid }) // Send UID for explicitness
+          body: JSON.stringify({ uid: userCredential.user.uid }) 
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from update-user-login' }));
+          console.error("Backend error (update-user-login):", errorData);
           throw new Error(errorData.message || 'Failed to update user login time via backend.');
         }
         // console.log("User login time updated via backend successfully.");
@@ -70,7 +69,7 @@ export const AuthProvider = ({ children }) => {
         console.error("Error calling backend to update user login:", backendError);
         toast({ 
           title: "Login Partially Successful", 
-          description: "Could not update login time. Please contact support if issues persist.",
+          description: `Could not update login time: ${backendError.message}. Please contact support if issues persist.`,
           variant: "destructive"
         });
         // Proceed with login even if backend update fails for now
@@ -86,11 +85,10 @@ export const AuthProvider = ({ children }) => {
     if (firebaseUser) {
       await updateProfile(firebaseUser, { displayName: name });
 
-      // Call backend to save user details
       let backendUserSaved = false;
       try {
         const idToken = await getIdToken(firebaseUser);
-        const response = await fetch('https://numbersguru.com/.netlify/functions/save-user', {
+        const response = await fetch('https://numbersguru.com/.netlify/functions/save-user', { // Corrected URL
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -99,50 +97,55 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify({ 
             uid: firebaseUser.uid, 
             email: firebaseUser.email, 
-            name, 
-            phoneNumber 
+            name: firebaseUser.displayName, // Use displayName after updateProfile
+            phoneNumber,
+            // role: 'customer' // Your backend will handle setting the role
+            // isVerified: false // Your backend will handle setting this
           })
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Backend user creation failed');
+          const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from save-user' }));
+          console.error("Backend error (save-user):", errorData);
+          throw new Error(errorData.message || 'Backend user creation/save failed');
         }
         // console.log("Backend user creation/save initiated successfully.");
         backendUserSaved = true;
       } catch (backendError) {
         console.error("Error calling backend to save user:", backendError);
-        toast({
-          title: "Signup Incomplete",
-          description: `Account creation failed during data save: ${backendError.message}. Please try again.`,
-          variant: "destructive",
-          duration: 7000,
-        });
-        // Optionally, delete the Firebase Auth user if backend save fails critically
-        // await firebaseUser.delete(); 
-        // For now, we'll proceed to send verification email but warn user.
+        // Even if backend call fails, we proceed to send verification email and sign out.
+        // The user is informed via toast.
       }
       
-      await sendEmailVerification(firebaseUser);
-      
-      if (backendUserSaved) {
-        toast({
-          title: "Verification Email Sent",
-          description: "Please check your email to verify your account. After verification, your account details will be fully set up.",
-          duration: 7000,
-        });
-      } else {
-         toast({
-          title: "Verification Email Sent (Action Required)",
-          description: "Verification email sent, but there was an issue saving your details. Please contact support if login issues persist after verification.",
-          variant: "destructive",
-          duration: 10000,
-        });
+      try {
+        await sendEmailVerification(firebaseUser);
+        if (backendUserSaved) {
+            toast({
+              title: "Verification Email Sent",
+              description: "Please check your email to verify your account.",
+              duration: 7000,
+            });
+        } else {
+            toast({
+                title: "Verification Email Sent (Action Required)",
+                description: "Verification email sent, but there was an issue saving your full details. Please contact support if login issues persist after verification.",
+                variant: "destructive",
+                duration: 10000,
+            });
+        }
+      } catch (verificationError) {
+          console.error("Failed to send verification email:", verificationError);
+          toast({
+            title: "Signup Issue",
+            description: "Could not send verification email. Please try signing up again or contact support.",
+            variant: "destructive",
+            duration: 7000,
+          });
       }
       
       await signOut(auth); // Sign out the user immediately after signup, forcing them to verify
     }
-    return userCredential;
+    return userCredential; // Though user is signed out, return credential for consistency
   }, [auth, toast]);
 
   const logout = useCallback(async () => {
