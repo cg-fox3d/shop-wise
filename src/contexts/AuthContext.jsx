@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       
       try {
         const idToken = await getIdToken(userCredential.user);
-        const response = await fetch('https://numbersguru.com/.netlify/functions/update-user-login', { // Corrected URL
+        const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/update-user-login', { // Corrected URL
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       let backendUserSaved = false;
       try {
         const idToken = await getIdToken(firebaseUser);
-        const response = await fetch('https://numbersguru.com/.netlify/functions/save-user', { // Corrected URL
+        const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/save-user', { // Corrected URL
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
