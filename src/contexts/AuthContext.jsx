@@ -9,11 +9,12 @@ import {
   signInWithEmailAndPassword, 
   signOut,
   updateProfile,
-  sendEmailVerification
+  sendEmailVerification,
+  getIdToken
 } from 'firebase/auth';
-import { firebaseApp, db } from '@/lib/firebase'; // Assuming firebase config is here
+import { firebaseApp, db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useToast } from "@/hooks/use-toast";
 
 const AuthContext = createContext(undefined);
 
@@ -21,21 +22,19 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); 
   const auth = getAuth(firebaseApp);
-  const { toast } = useToast(); // Initialize toast
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // If user exists, check if their Firestore doc has isVerified flag,
-        // and if emailVerified from auth is true, then sync it.
-        // This is a secondary check; primary check is during login.
         if (currentUser.emailVerified) {
           const userDocRef = doc(db, "users", currentUser.uid);
           try {
-            await updateDoc(userDocRef, { isVerified: true });
+            // This update is optimistic. If the doc doesn't exist, it won't create it.
+            // The backend function should be the primary source for creating the user doc.
+            await updateDoc(userDocRef, { isVerified: true, lastLogin: serverTimestamp() });
           } catch (error) {
-            // It's okay if the doc doesn't exist yet, will be created on login/signup.
-            // console.warn("Could not update isVerified flag on auth state change:", error.message);
+            // console.warn("Could not update isVerified/lastLogin on auth state change (doc might not exist yet):", error.message);
           }
         }
       }
@@ -49,32 +48,28 @@ export const AuthProvider = ({ children }) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     if (userCredential.user) {
       if (!userCredential.user.emailVerified) {
-        await signOut(auth); // Sign out user if email is not verified
+        await signOut(auth); 
         toast({
           title: "Email Verification Required",
           description: "Please verify your email address before logging in. Check your inbox for a verification link.",
           variant: "destructive",
           duration: 7000,
         });
-        throw new Error("Email not verified."); // Throw error to stop further login process in modal
+        throw new Error("Email not verified.");
       }
-      // Email is verified, proceed to update lastLogin
+      
       const userDocRef = doc(db, "users", userCredential.user.uid);
       try {
         await updateDoc(userDocRef, {
           lastLogin: serverTimestamp(),
-          isVerified: true // Ensure isVerified is true
+          isVerified: true 
         });
-         // Assuming LoginModal calls onLoginSuccess from its own context or props
-        // For example, if LoginModal is passed an onLoginSuccess prop:
-        // if (typeof onLoginSuccess === 'function') onLoginSuccess();
-        // For now, a generic success toast.
         toast({ title: "Login Successful" });
-
       } catch (error) {
         console.error("Error updating lastLogin or isVerified:", error);
-        // Still proceed with login, but log the error
-        toast({ title: "Login Successful (with minor issue updating details)" });
+        // If the document doesn't exist here, it means the backend function might not have created it yet.
+        // This is a potential issue to handle based on your backend implementation.
+        toast({ title: "Login Successful (Note: User details might still be syncing)" });
       }
     }
     return userCredential;
@@ -85,40 +80,52 @@ export const AuthProvider = ({ children }) => {
     const firebaseUser = userCredential.user;
 
     if (firebaseUser) {
-      // Update Firebase Auth profile
       await updateProfile(firebaseUser, { displayName: name });
-
-      // Send email verification
       await sendEmailVerification(firebaseUser);
+      
       toast({
         title: "Verification Email Sent",
-        description: "Please check your email to verify your account before logging in.",
+        description: "Please check your email to verify your account. After verification, your account details will be fully set up.",
         duration: 7000,
       });
+
+      // IMPORTANT: Backend User Creation Step
+      // The user document in Firestore (with uid, name, email, phoneNumber, isVerified: false, 
+      // createdAt, registeredOn, role: "customer") should now be created by a backend function.
+      // You would typically call your backend function here, passing the firebaseUser.uid or ID token, 
+      // name, and phoneNumber.
+      // Example (conceptual):
+      /*
+      try {
+        const idToken = await getIdToken(firebaseUser);
+        const response = await fetch('/api/create-user', { // Your backend endpoint
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ name, phoneNumber, email: firebaseUser.email, uid: firebaseUser.uid })
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Backend user creation failed');
+        }
+        console.log("Backend user creation initiated successfully.");
+      } catch (backendError) {
+        console.error("Error calling backend to create user:", backendError);
+        // Handle this error appropriately - maybe log it, inform the user,
+        // or queue the user creation for a retry.
+        // For now, we'll proceed with signing out the user as email verification is key.
+      }
+      */
       
-      // Store user details in Firestore
-      const userDocRef = doc(db, "users", firebaseUser.uid);
-      const now = serverTimestamp();
-      await setDoc(userDocRef, {
-        uid: firebaseUser.uid,
-        name: name,
-        email: firebaseUser.email,
-        phoneNumber: phoneNumber,
-        isVerified: false, // Initially false
-        createdAt: now,
-        registeredOn: now, // Can be same as createdAt or a specific registration event timestamp
-        lastLogin: null, // No last login yet
-      });
-      
-      // Sign out the user immediately after signup, forcing them to verify
-      await signOut(auth);
+      await signOut(auth); // Sign out the user immediately after signup, forcing them to verify
     }
-    return userCredential;
+    return userCredential; // Return the original credential for potential further frontend use if needed
   }, [auth, toast]);
 
   const logout = useCallback(async () => {
     await signOut(auth);
-    // Toast for logout success is usually handled where logout is called.
   }, [auth]);
 
   const value = {

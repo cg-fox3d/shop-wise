@@ -27,9 +27,9 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  name: z.string().min(2, { message: "Name must be at least 2 characters" }).max(50, { message: "Name must be 50 characters or less" }),
   email: z.string().email({ message: "Invalid email address" }),
-  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits" }).regex(/^\d+$/, {message: "Phone number must contain only digits"}),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits" }).max(15, {message: "Phone number must be 15 digits or less"}).regex(/^\+?[1-9]\d{1,14}$/, {message: "Invalid phone number format"}),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -56,15 +56,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     setLoading(true);
     try {
       await login(data.email, data.password);
-      // onLoginSuccess is called from AuthContext after email verification check
-      // resetLogin(); // Reset form on success
+      // onLoginSuccess is called indirectly by AuthContext's login success toast,
+      // or if you pass it to the login function directly
+      if (typeof onLoginSuccess === 'function') {
+        onLoginSuccess();
+      }
+      resetLogin();
     } catch (error) {
-      console.error("Login failed:", error);
-      toast({
-        title: "Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Toast for login failure (including email not verified) is handled in AuthContext
+      // console.error("Login failed from modal:", error);
     } finally {
       setLoading(false);
     }
@@ -73,16 +73,18 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const onSignup = async (data) => {
       setLoading(true);
       try {
+        // The signup function in AuthContext now handles sending verification email
+        // and no longer writes to Firestore directly from the frontend.
         await signup(data.email, data.password, data.name, data.phoneNumber);
-        // Toast for verification is handled in AuthContext
+        // Toast for verification is handled in AuthContext.
         setActiveTab("login"); 
         resetSignup(); 
-        resetLogin({ email: data.email }); 
+        resetLogin({ email: data.email }); // Pre-fill login email
       } catch (error) {
-        console.error("Signup failed:", error);
+        console.error("Signup failed from modal:", error);
         toast({
           title: "Signup Failed",
-          description: error.message,
+          description: error.message, // Display error message from Firebase or AuthContext
           variant: "destructive",
         });
       } finally {
@@ -96,7 +98,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       onClose(); 
       resetLogin(); 
       resetSignup();
-      setActiveTab("login"); // Reset to login tab on close
+      setActiveTab("login");
     }
   };
 
@@ -184,7 +186,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                    <Input
                       id="signup-phone"
                       type="tel"
-                      placeholder="1234567890"
+                      placeholder="+11234567890"
                       {...registerSignup("phoneNumber")}
                       className="pl-8"
                    />
