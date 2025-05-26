@@ -98,6 +98,8 @@ export default function CheckoutPage() {
         if (item.type === 'pack' && item.selectedNumbers) {
           // For packs, map over selectedNumbers and get their 'originalVipId'
           // This 'originalVipId' MUST exist on each number object within the pack's data from Firestore
+          console.log('Selected Numbers:', item.selectedNumbers);
+          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipId))
           return item.selectedNumbers.map(selectedNum => selectedNum.originalVipId).filter(id => id); // filter out undefined/null
         } else if (item.type === 'vipNumber') { // This 'type' is set by transformVipNumberData
           // For individual VIP numbers, item.id is its Firestore document ID.
@@ -249,14 +251,14 @@ export default function CheckoutPage() {
                     )}
                     <p className="text-sm text-muted-foreground">Quantity: {quantity}</p>
                   </div>
-                  <p className="font-medium">${(price * quantity).toFixed(2)}</p>
+                  <p className="font-medium">₹{(price * quantity).toFixed(2)}</p>
                 </div>
               );
             })}
             <Separator />
             <div className="flex justify-between items-center font-bold text-lg">
               <span>Total</span>
-              <span>${cartTotal.toFixed(2)}</span>
+              <span>₹{cartTotal.toFixed(2)}</span>
             </div>
           </CardContent>
           <CardFooter>
@@ -265,7 +267,7 @@ export default function CheckoutPage() {
               onClick={handlePayment}
               disabled={loading || cartItems.length === 0 || !razorpayLoaded || !user || !RAZORPAY_KEY_ID}
             >
-              {loading ? 'Processing...' : `Pay $${cartTotal.toFixed(2)} with Razorpay`}
+              {loading ? 'Processing...' : `Pay ₹${cartTotal.toFixed(2)} with Razorpay`}
             </Button>
           </CardFooter>
         </Card>
@@ -277,5 +279,3 @@ export default function CheckoutPage() {
     </>
   );
 }
-
-    

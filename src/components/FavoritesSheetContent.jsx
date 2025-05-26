@@ -89,10 +89,10 @@ export default function FavoritesSheetContent() {
                       )}
                       <div className="flex items-center justify-between">
                         <div className="text-sm">
-                          <span className="text-primary font-medium">${price?.toFixed(2)}</span>
+                          <span className="text-primary font-medium">₹{price?.toFixed(2)}</span>
                           {originalPrice && originalPrice > price && (
                             <span className="ml-2 line-through text-muted-foreground">
-                              ${originalPrice.toFixed(2)}
+                              ₹{originalPrice.toFixed(2)}
                             </span>
                           )}
                         </div>

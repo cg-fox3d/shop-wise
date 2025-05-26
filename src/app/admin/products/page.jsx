@@ -122,7 +122,7 @@ export default function AdminProductsPage() {
                     vipNumbers.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.number}</TableCell>
-                        <TableCell>${item.price.toFixed(2)}</TableCell>
+                        <TableCell>₹{item.price.toFixed(2)}</TableCell>
                         <TableCell><Badge variant={item.status === 'available' ? 'default' : 'secondary'}>{item.status}</Badge></TableCell>
                         <TableCell>{item.categorySlug}</TableCell>
                         <TableCell className="text-right space-x-2">
@@ -168,7 +168,7 @@ export default function AdminProductsPage() {
                                 {pack.numbers?.length > 2 && <li>...and {pack.numbers.length - 2} more</li>}
                             </ul> */}
                         </TableCell>
-                        <TableCell>${pack.packPrice?.toFixed(2)}</TableCell>
+                        <TableCell>₹{pack.packPrice?.toFixed(2)}</TableCell>
                         <TableCell><Badge variant={pack.status === 'available' ? 'default' : 'secondary'}>{pack.status}</Badge></TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button variant="outline" size="icon" disabled><Edit className="h-4 w-4" /></Button>

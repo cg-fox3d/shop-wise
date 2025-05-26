@@ -50,7 +50,7 @@ export default function AdminOrdersPage() {
                     <TableCell className="font-medium">{order.id}</TableCell>
                     <TableCell>{order.customerName || 'N/A'}</TableCell>
                     <TableCell>{order.date ? new Date(order.date).toLocaleDateString() : 'N/A'}</TableCell>
-                    <TableCell>${order.total ? order.total.toFixed(2) : '0.00'}</TableCell>
+                    <TableCell>₹{order.total ? order.total.toFixed(2) : '0.00'}</TableCell>
                     <TableCell>{order.status || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" disabled>View Details</Button>

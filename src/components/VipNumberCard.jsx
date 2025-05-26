@@ -30,7 +30,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
         <CardHeader className="p-0 relative">
           <div className="bg-primary/90 text-primary-foreground p-3 flex justify-between items-center">
             <span className="font-semibold text-sm">
-              {discount ? `Save ${discount}/-` : (originalPrice && originalPrice > price ? `Save ${originalPrice - price}/-` : 'Best Price')}
+              {discount ? `Save ₹${discount}/-` : (originalPrice && originalPrice > price ? `Save ₹${originalPrice - price}/-` : 'Best Price')}
             </span>
             <div className="flex items-center space-x-1.5">
               {isVip && (
@@ -87,11 +87,11 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
             <div className="text-left">
               {originalPrice && originalPrice > price && (
                 <p className="text-sm text-muted-foreground line-through">
-                  {originalPrice}/-
+                  ₹{originalPrice}/-
                 </p>
               )}
               <p className="text-xl font-semibold text-primary">
-                {price}/-
+                ₹{price}/-
               </p>
             </div>
             <Button onClick={() => onBookNow(numberDetails)} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">

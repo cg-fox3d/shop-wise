@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -52,7 +53,7 @@ export default function ProductCard({ product }) {
       </CardContent>
       <CardFooter className="p-4 flex justify-between items-center">
         <span className="text-lg font-bold text-primary">
-          ${product.price.toFixed(2)}
+          ₹{product.price.toFixed(2)}
         </span>
         <Button onClick={handleAddToCart} size="sm" disabled={isInCart}>
           {isInCart ? (

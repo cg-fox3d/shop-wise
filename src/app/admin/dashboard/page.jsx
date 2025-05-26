@@ -6,7 +6,7 @@ import { DollarSign, Users, ShoppingBag, Package } from 'lucide-react';
 
 // Dummy data - replace with actual data fetching
 const stats = [
-  { title: "Total Revenue", value: "$0", icon: DollarSign, description: "Placeholder data" },
+  { title: "Total Revenue", value: "₹0", icon: DollarSign, description: "Placeholder data" },
   { title: "New Customers", value: "0", icon: Users, description: "Placeholder data" },
   { title: "Orders This Month", value: "0", icon: ShoppingBag, description: "Placeholder data" },
   { title: "Products in Stock", value: "0", icon: Package, description: "Placeholder data (VIP + Packs)" },

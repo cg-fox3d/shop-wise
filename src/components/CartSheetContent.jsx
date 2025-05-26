@@ -86,7 +86,7 @@ export default function CartSheetContent() {
                             <p className="text-xs text-muted-foreground">Selected numbers ({item.selectedNumbers.length}):</p>
                             <ul className="text-xs text-muted-foreground list-disc list-inside pl-1 max-h-16 overflow-y-auto scrollbar-hide">
                             {item.selectedNumbers.map((num, idx) => (
-                                <li key={num.id || idx} className="truncate">{num.number} ({num.price}/-)</li>
+                                <li key={num.id || idx} className="truncate">{num.number} (₹{num.price}/-)</li>
                             ))}
                             </ul>
                         </div>
@@ -94,12 +94,12 @@ export default function CartSheetContent() {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-sm">
-                          <span className="text-primary font-medium">${price?.toFixed(2)}</span>
+                          <span className="text-primary font-medium">₹{price?.toFixed(2)}</span>
                           {/* Original price for packs might be complex to show if it's a dynamic selection vs full pack original */}
                           {/* For individual items: */}
                           {!isPackSelection && originalPrice && originalPrice > price && (
                             <span className="ml-2 line-through text-muted-foreground">
-                              ${originalPrice.toFixed(2)}
+                              ₹{originalPrice.toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -140,7 +140,7 @@ export default function CartSheetContent() {
           <SheetFooter className="mt-auto px-6 sm:flex-col sm:space-y-4 sm:items-stretch">
              <div className="flex justify-between items-center font-medium py-4">
                 <span>Subtotal</span>
-                <span>${cartTotal.toFixed(2)}</span>
+                <span>₹{cartTotal.toFixed(2)}</span>
              </div>
              <Button variant="outline" onClick={clearCart} className="w-full">Clear Cart</Button>
              <SheetClose asChild>

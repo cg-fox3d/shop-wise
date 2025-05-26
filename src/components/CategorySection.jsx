@@ -44,6 +44,7 @@ export default function CategorySection({
       displayableItems = safeItems.filter(item => item.numbers && item.numbers.length === parseInt(selectedNumQuantity));
     }
     setFilteredDisplayItems(displayableItems.slice(0, ITEMS_PER_SECTION));
+    // console.log("FilteredDisplayItems: ", filteredDisplayItems)
   }, [safeItems, selectedNumQuantity, categoryType]);
 
 
@@ -71,6 +72,7 @@ export default function CategorySection({
     ))
   );
 
+  console.log("FilteredDisplayItems: ", filteredDisplayItems);
   const renderItems = () => (
     filteredDisplayItems.map((item) => (
       <div key={item.id} className="flex-shrink-0 w-[290px] md:w-[310px] lg:w-[330px]">

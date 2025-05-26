@@ -68,6 +68,7 @@ export const CartProvider = ({ children }) => {
           type: product.type || (product.selectedNumbers ? 'pack' : 'vipNumber'),
           price: product.price 
         };
+        console.log("newItem:", newItem);
         return [...prevItems, newItem];
       }
     });

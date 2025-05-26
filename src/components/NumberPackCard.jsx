@@ -27,6 +27,8 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
 
   const handleSelectAll = (checked) => {
     if (checked) {
+      console.log('packDetails:', packDetails);
+      console.log('numbers:', new Set(numbers.map(n => n.id)));
       setSelectedNumberIds(new Set(numbers.map(n => n.id)));
     } else {
       setSelectedNumberIds(new Set());
@@ -70,6 +72,7 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
       price: displayPrice, // Use the dynamically calculated price or bundle price
       type: 'pack' // Keep type as pack, cart context will handle selectedNumbers
     };
+    console.log(itemToAdd);
     onAddToCart(itemToAdd);
   };
 
@@ -106,7 +109,7 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
           )}
           <div className={`p-3 flex justify-between items-center ${!imageUrl ? 'bg-primary/90 text-primary-foreground' : 'absolute top-0 left-0 right-0 bg-gradient-to-b from-black/50 to-transparent text-white'}`}>
             {/* <span className="font-semibold text-sm">
-              {discount > 0 ? `Save ${discount.toFixed(2)}/-` : 'Special Pack'}
+              {discount > 0 ? `Save ₹${discount.toFixed(2)}/-` : 'Special Pack'}
             </span> */}
             <div className="flex items-center space-x-1.5">
               {isVipPack && (
@@ -165,7 +168,7 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
                         {num.number}
                       </Label>
                     </div>
-                    <span className="text-sm text-muted-foreground">{num.price}/-</span>
+                    <span className="text-sm text-muted-foreground">₹{num.price}/-</span>
                   </div>
                 ))}
               </div>
@@ -182,11 +185,11 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
                     )}
                      {/* {(currentSelectedNumbers.length > 0 && currentSelectedNumbers.length < numbers.length && currentDynamicPrice < numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0) ) && (
                          <p className="text-xs text-muted-foreground line-through">
-                           Original: {numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0).toFixed(2)}/-
+                           Original: ₹{numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0).toFixed(2)}/-
                        </p>
                     )} */}
                     <p className="text-2xl font-semibold text-primary">
-                      {displayPrice.toFixed(2)}/-
+                      ₹{displayPrice.toFixed(2)}/-
                     </p>
                 </div>
                 <Button onClick={handleBookNowClick} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={currentSelectedNumbers.length === 0}>
