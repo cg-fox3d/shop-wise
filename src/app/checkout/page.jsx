@@ -93,14 +93,25 @@ export default function CheckoutPage() {
       }).join(', ');
       const transactionDescription = `Purchase of ${itemDescriptions}`;
 
+      // Extract the original VIP number document IDs
       const selectedOriginalVipNumberIds = cartItems.flatMap(item => {
         if (item.type === 'pack' && item.selectedNumbers) {
-          return item.selectedNumbers.map(selectedNum => selectedNum.id);
-        } else if (item.type === 'vipNumber') {
+          // For packs, map over selectedNumbers and get their 'originalVipId'
+          // This 'originalVipId' MUST exist on each number object within the pack's data from Firestore
+          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipId).filter(id => id); // filter out undefined/null
+        } else if (item.type === 'vipNumber') { // This 'type' is set by transformVipNumberData
+          // For individual VIP numbers, item.id is its Firestore document ID.
           return [item.id];
         }
         return []; 
-      });
+      }).filter(id => id); // Ensure no undefined/null ids in the final list
+
+      if (selectedOriginalVipNumberIds.length === 0) {
+        console.warn("No original VIP number IDs found in cart items for backend processing. This might be an issue if items were expected.");
+        // Depending on your business logic, you might want to throw an error here or proceed.
+        // For now, we'll proceed but log a warning.
+      }
+      console.log('Sending selectedOriginalVipNumberIds to backend:', selectedOriginalVipNumberIds);
 
 
       const order = await createRazorpayOrder({ 
@@ -113,7 +124,7 @@ export default function CheckoutPage() {
           name: user.displayName,
           itemCount: cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
           itemDetails: itemDescriptions,
-          selectedOriginalVipNumberIds: selectedOriginalVipNumberIds
+          selectedOriginalVipNumberIds: selectedOriginalVipNumberIds // Pass the correct IDs
         } 
       });
 
@@ -135,7 +146,6 @@ export default function CheckoutPage() {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature
           });
-          // Here, you might also pass selectedOriginalVipNumberIds to your success handler/page if needed
           router.push(`/payment/success?orderId=${response.razorpay_order_id}&paymentId=${response.razorpay_payment_id}`);
           clearCart();
         },
@@ -221,7 +231,7 @@ export default function CheckoutPage() {
             {cartItems.map((item) => {
               const isPackSelection = item.type === 'pack' && item.selectedNumbers;
               const name = isPackSelection ? item.name : item.number;
-              const price = item.price; // Already calculated for packs
+              const price = item.price; 
               const quantity = item.quantity || 1;
 
               return (
@@ -268,3 +278,4 @@ export default function CheckoutPage() {
   );
 }
 
+    
