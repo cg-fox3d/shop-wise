@@ -15,8 +15,7 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
   const {
     id,
     name,
-    numbers = [], // Ensure numbers is an array
-    packPrice, // Original price if all selected or a special bundle price
+    numbers = [], // Ensure numbers is an array // Original price if all selected or a special bundle price
     totalOriginalPrice, // Sum of all individual numbers if bought separately
     isVipPack,
     imageUrl,
@@ -53,8 +52,8 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
   const someSelected = currentSelectedNumbers.length > 0 && !allSelected;
 
   // Determine if there's a bundle discount if all are selected
-  const effectivePackPrice = (packPrice && packPrice < totalOriginalPrice) ? packPrice : totalOriginalPrice;
-  const displayPrice = allSelected && packPrice < currentDynamicPrice ? packPrice : currentDynamicPrice;
+  // const effectivePackPrice = (packPrice && packPrice < totalOriginalPrice) ? packPrice : totalOriginalPrice;
+  const displayPrice = currentDynamicPrice;
   
   const discount = totalOriginalPrice && totalOriginalPrice > displayPrice ? totalOriginalPrice - displayPrice : 0;
 
@@ -106,9 +105,9 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
             </div>
           )}
           <div className={`p-3 flex justify-between items-center ${!imageUrl ? 'bg-primary/90 text-primary-foreground' : 'absolute top-0 left-0 right-0 bg-gradient-to-b from-black/50 to-transparent text-white'}`}>
-            <span className="font-semibold text-sm">
+            {/* <span className="font-semibold text-sm">
               {discount > 0 ? `Save ${discount.toFixed(2)}/-` : 'Special Pack'}
-            </span>
+            </span> */}
             <div className="flex items-center space-x-1.5">
               {isVipPack && (
                 <Tooltip>
@@ -176,16 +175,16 @@ export default function NumberPackCard({ packDetails, onBookNow, onAddToCart, on
         <CardFooter className="p-4 flex flex-col items-stretch space-y-2 border-t mt-auto">
             <div className="flex justify-between items-center mb-2">
                 <div className="text-left">
-                    {allSelected && packPrice < currentDynamicPrice && (
-                       <p className="text-xs text-muted-foreground line-through">
-                           Total: {currentDynamicPrice.toFixed(2)}/-
+                    {allSelected < currentDynamicPrice && (
+                       <p className="text-xs text-muted-foreground">
+                           Total Price:
                        </p>
                     )}
-                     {(currentSelectedNumbers.length > 0 && currentSelectedNumbers.length < numbers.length && currentDynamicPrice < numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0) ) && (
+                     {/* {(currentSelectedNumbers.length > 0 && currentSelectedNumbers.length < numbers.length && currentDynamicPrice < numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0) ) && (
                          <p className="text-xs text-muted-foreground line-through">
                            Original: {numbers.filter(n => selectedNumberIds.has(n.id)).reduce((sum, n) => sum + (totalOriginalPrice/numbers.length), 0).toFixed(2)}/-
                        </p>
-                    )}
+                    )} */}
                     <p className="text-2xl font-semibold text-primary">
                       {displayPrice.toFixed(2)}/-
                     </p>

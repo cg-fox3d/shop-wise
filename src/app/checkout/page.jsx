@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { createRazorpayOrder } from '@/services/razorpay';
+import { createRazorpayOrder, verifyPayment } from '@/services/razorpay';
 import { useToast } from "@/hooks/use-toast";
 import Script from 'next/script';
 import LoginModal from '@/components/LoginModal';
@@ -93,16 +93,27 @@ export default function CheckoutPage() {
       }).join(', ');
       const transactionDescription = `Purchase of ${itemDescriptions}`;
 
+      const selectedOriginalVipNumberIds = cartItems.flatMap(item => {
+        if (item.type === 'pack' && item.selectedNumbers) {
+          return item.selectedNumbers.map(selectedNum => selectedNum.id);
+        } else if (item.type === 'vipNumber') {
+          return [item.id];
+        }
+        return []; 
+      });
+
 
       const order = await createRazorpayOrder({ 
         amount: amountInPaise, 
         currency: 'INR',
-        receipt: `receipt_user_${user.uid}_${Date.now()}`,
+        receipt: `r_u_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`,
         notes: { 
           userId: user.uid, 
           email: user.email,
-          itemCount: cartItems.reduce((sum, item) => sum + item.quantity, 0),
-          itemDetails: itemDescriptions 
+          name: user.displayName,
+          itemCount: cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
+          itemDetails: itemDescriptions,
+          selectedOriginalVipNumberIds: selectedOriginalVipNumberIds
         } 
       });
 
@@ -116,9 +127,15 @@ export default function CheckoutPage() {
         currency: "INR",
         name: "ShopWave VIP Numbers",
         description: transactionDescription.substring(0, 250), 
-        image: "/logo.svg",
+        image: "/logo.svg", // Replace with your actual logo URL
         order_id: order.id,
-        handler: function (response) {
+        handler: async function (response) {
+          await verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+          // Here, you might also pass selectedOriginalVipNumberIds to your success handler/page if needed
           router.push(`/payment/success?orderId=${response.razorpay_order_id}&paymentId=${response.razorpay_payment_id}`);
           clearCart();
         },
@@ -131,7 +148,7 @@ export default function CheckoutPage() {
           address: "Online Purchase"
         },
         theme: {
-          color: "#008080" 
+          color: "#008080" // Teal color - you can adjust this to match your theme
         },
         modal: {
           ondismiss: function () {
@@ -250,3 +267,4 @@ export default function CheckoutPage() {
     </>
   );
 }
+

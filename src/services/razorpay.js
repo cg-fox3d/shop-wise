@@ -29,9 +29,9 @@ export async function createRazorpayOrder(orderDetails) {
   console.log("Attempting to create order with details:", orderDetails);
 
   // Example: Using fetch to call a hypothetical backend endpoint
-  /*
+  
   try {
-    const response = await fetch('/api/create-razorpay-order', { // Your backend endpoint
+    const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/create-order', { // Your backend endpoint
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,32 +41,18 @@ export async function createRazorpayOrder(orderDetails) {
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.log("Backend error:", errorData);
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
     const orderData = await response.json();
     console.log("Order created successfully:", orderData);
-    return orderData;
+    return orderData.order;
 
   } catch (error) {
     console.error("Failed to create Razorpay order:", error);
     throw error; // Re-throw the error to be caught by the calling function
   }
-  */
-
-   // --- Dummy Implementation (REMOVE IN PRODUCTION) ---
-   // Simulating a backend call with a delay
-   await new Promise(resolve => setTimeout(resolve, 500));
-   const dummyOrderId = `order_${Date.now()}`;
-   console.log("Using dummy order creation. Order ID:", dummyOrderId);
-   return {
-     id: dummyOrderId,
-     amount: orderDetails.amount,
-     currency: orderDetails.currency,
-     status: 'created',
-     // Add other fields as needed based on your actual backend response
-   };
-   // --- End Dummy Implementation ---
 }
 
 /**
@@ -88,11 +74,9 @@ export async function verifyPayment(verificationDetails) {
   // !!! IMPORTANT: Replace this with an actual API call to YOUR backend !!!
   // Your backend should securely handle Razorpay API keys and signature verification.
   console.log("Attempting to verify payment with details:", verificationDetails);
-
-   // Example: Using fetch to call a hypothetical backend endpoint
-  /*
+  
   try {
-    const response = await fetch('/api/verify-razorpay-payment', { // Your backend endpoint
+    const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/verify-payment', { // Your backend endpoint
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,12 +97,5 @@ export async function verifyPayment(verificationDetails) {
      console.error("Failed to verify Razorpay payment:", error);
      throw error; // Re-throw the error
    }
-   */
-
-   // --- Dummy Implementation (REMOVE IN PRODUCTION) ---
-   console.log("Using dummy payment verification. Assuming success.");
-   await new Promise(resolve => setTimeout(resolve, 300));
-   // Basic check for demo purposes - in reality, backend does crypto verification
-   return !!(verificationDetails.orderId && verificationDetails.paymentId && verificationDetails.signature);
-   // --- End Dummy Implementation ---
+   
 }

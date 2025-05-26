@@ -103,7 +103,7 @@ export default function CartSheetContent() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center space-x-1">
+                        {/* <div className="flex items-center space-x-1">
                           <Button
                             variant="outline"
                             size="icon"
@@ -129,7 +129,7 @@ export default function CartSheetContent() {
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                   );
