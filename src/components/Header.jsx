@@ -3,19 +3,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, User, LogOut, LogIn, Heart, ShieldCheck } from 'lucide-react'; // Added Heart, ShieldCheck
+import { ShoppingCart, User, LogOut, LogIn, Heart } from 'lucide-react'; // Removed ShieldCheck
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFavorites } from '@/contexts/FavoritesContext'; // Added
+import { useFavorites } from '@/contexts/FavoritesContext';
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import CartSheetContent from './CartSheetContent';
-import FavoritesSheetContent from './FavoritesSheetContent'; // Added
+import FavoritesSheetContent from './FavoritesSheetContent';
 import LoginModal from './LoginModal';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,18 +28,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@shopwave.com";
+// const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@shopwave.com"; // Removed
 
 export default function Header() {
   const { getItemCount } = useCart();
-  const { getFavoritesCount } = useFavorites(); // Added
+  const { getFavoritesCount } = useFavorites();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const itemCount = getItemCount();
-  const favoritesCount = getFavoritesCount(); // Added
+  const favoritesCount = getFavoritesCount();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  const isAdmin = user && user.email === ADMIN_EMAIL;
+  // const isAdmin = user && user.email === ADMIN_EMAIL; // Removed
 
   const handleLogout = async () => {
     try {
@@ -138,14 +138,7 @@ export default function Header() {
                      </div>
                    </DropdownMenuLabel>
                    <DropdownMenuSeparator />
-                   {isAdmin && (
-                     <DropdownMenuItem asChild>
-                       <Link href="/admin/dashboard">
-                         <ShieldCheck className="mr-2 h-4 w-4" />
-                         <span>Admin Panel</span>
-                       </Link>
-                     </DropdownMenuItem>
-                   )}
+                   {/* Admin Panel link removed */}
                    <DropdownMenuItem onClick={handleLogout}>
                      <LogOut className="mr-2 h-4 w-4" />
                      <span>Log out</span>
@@ -165,4 +158,3 @@ export default function Header() {
     </>
   );
 }
-
