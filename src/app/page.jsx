@@ -24,20 +24,23 @@ const transformVipNumberData = (doc) => {
   };
 };
 
-const transformNumberPackData = (doc) => {
+const transformNumberPackData = (doc, allVipNumbersMap) => {
   const data = doc.data();
   return {
     id: doc.id,
     ...data,
-    packPrice: parseFloat(data.packPrice) || 0, // Price for the whole pack if bought as is
+    packPrice: parseFloat(data.packPrice) || 0,
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
-    type: 'pack', // Explicitly define type
-    // Ensure numbers array and their prices are correctly formatted
-    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => ({
-        ...num,
-        price: parseFloat(num.price) || 0, // Ensure individual number price is float
-        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}` // Ensure num has an id
-    })) : []
+    type: 'pack',
+    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
+        const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+        return {
+            ...num,
+            price: parseFloat(num.price) || 0,
+            id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`, // Ensure num has an id
+            status: vipNumberDetails ? vipNumberDetails.status : 'unknown' // Default to 'unknown' or 'sold' if not found
+        };
+    }) : []
   };
 };
 
@@ -51,8 +54,10 @@ const transformCategoryData = (doc) => {
 
 export default function Home() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [isLoadingVipNumbers, setIsLoadingVipNumbers] = useState(true); // For VIP numbers loading
+  const [isLoadingItems, setIsLoadingItems] = useState(true); // General items loading (packs)
   const [categoriesData, setCategoriesData] = useState([]);
+  const [allVipNumbers, setAllVipNumbers] = useState([]); // Store all VIP numbers
   
   const { toast } = useToast();
   const router = useRouter();
@@ -63,10 +68,27 @@ export default function Home() {
   const [pendingAction, setPendingAction] = useState(null);
 
   useEffect(() => {
+    setIsLoadingVipNumbers(true);
+    const vipNumbersQuery = query(collection(db, "vipNumbers")); // Fetch all, or filter by status if needed globally
+    const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
+      setAllVipNumbers(snapshot.docs.map(transformVipNumberData));
+      setIsLoadingVipNumbers(false);
+    }, (error) => {
+      console.error("Error fetching VIP numbers:", error);
+      toast({ title: "Error", description: "Could not load VIP numbers data.", variant: "destructive" });
+      setIsLoadingVipNumbers(false);
+    });
+    return () => unsubscribeVipNumbers();
+  }, [toast]);
+
+  useEffect(() => {
+    if (isLoadingVipNumbers) return; // Wait for VIP numbers to load
+
     setIsLoadingCategories(true);
     setIsLoadingItems(true);
 
     const categoriesQuery = query(collection(db, "categories"), orderBy("order", "asc"));
+    const allVipNumbersMap = new Map(allVipNumbers.map(num => [num.id, num]));
 
     const unsubscribeCategories = onSnapshot(categoriesQuery, async (querySnapshot) => {
       const fetchedCategories = querySnapshot.docs.map(transformCategoryData);
@@ -81,15 +103,12 @@ export default function Home() {
             where("status", "==", "available")
           );
           const packSnapshot = await getDocs(itemsQuery);
-          items = packSnapshot.docs.map(transformNumberPackData);
+          items = packSnapshot.docs.map(doc => transformNumberPackData(doc, allVipNumbersMap));
         } else { 
-          itemsQuery = query(
-            collection(db, "vipNumbers"), 
-            where("categorySlug", "==", category.slug),
-            where("status", "==", "available")
+          // For 'individual' categories, items are directly from allVipNumbers filtered by categorySlug and status
+          items = allVipNumbers.filter(
+            num => num.categorySlug === category.slug && num.status === 'available'
           );
-          const numberSnapshot = await getDocs(itemsQuery);
-          items = numberSnapshot.docs.map(transformVipNumberData);
         }
         return { ...category, items };
       });
@@ -104,6 +123,7 @@ export default function Home() {
           description: "Could not load items for some categories.",
           variant: "destructive",
         });
+        // Fallback to categories with empty items if Promise.all fails for items
         setCategoriesData(fetchedCategories.map(cat => ({ ...cat, items: [] })));
       } finally {
         setIsLoadingCategories(false);
@@ -121,7 +141,7 @@ export default function Home() {
     });
 
     return () => unsubscribeCategories();
-  }, [toast]);
+  }, [toast, isLoadingVipNumbers, allVipNumbers]);
 
 
   const handleLoginSuccess = () => {
@@ -143,22 +163,17 @@ export default function Home() {
   };
 
   const handleBookNow = useCallback((item) => {
-    // If item is a pack, it will include selectedNumbers and a calculated price
     const itemName = item.type === 'pack' ? item.name : item.number;
-    // For packs with selections, cart logic might be more complex than just checking item.id
-    // For now, assume addToCart handles uniqueness if needed, or a new item is created for new selections
     addToCart(item); 
     toast({
       title: "Added to Cart",
-      description: `${itemName} (selection) has been added to your cart.`,
+      description: `${itemName} ${item.type === 'pack' ? '(selection)' : ''} has been added to your cart. Proceeding to checkout.`,
     });
     router.push('/checkout');
   }, [addToCart, router, toast]);
 
   const handleAddToCart = useCallback((item) => {
-    // Item for 'pack' type will have 'selectedNumbers' and dynamic 'price'
     const itemName = item.type === 'pack' ? `${item.name} (Selection)` : item.number;
-    // addToCart in CartContext should handle uniqueness logic for packs with selections
     addToCart(item);
     toast({
       title: "Added to Cart",
@@ -167,13 +182,12 @@ export default function Home() {
   }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    // Favorites will still target the main pack/item ID, not specific selections for simplicity
     toggleFavorite(item); 
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
 
-  const overallLoading = isLoadingCategories || isLoadingItems;
+  const overallLoading = isLoadingCategories || isLoadingItems || isLoadingVipNumbers;
 
   return (
     <div>
@@ -205,7 +219,7 @@ export default function Home() {
             title={category.title}
             slug={category.slug}
             items={category.items || []}
-            isLoading={overallLoading && category.items === undefined}
+            isLoading={overallLoading && category.items === undefined} // isLoading is true if category items not yet processed
             categoryType={category.type || 'individual'}
             onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
             onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}

@@ -17,7 +17,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDoc, doc, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, limit } from 'firebase/firestore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
@@ -32,7 +32,7 @@ const transformVipNumberData = (doc) => {
   };
 };
 
-const transformNumberPackData = (doc) => {
+const transformNumberPackData = (doc, allVipNumbersMap) => {
   const data = doc.data();
   return {
     id: doc.id,
@@ -40,11 +40,15 @@ const transformNumberPackData = (doc) => {
     packPrice: parseFloat(data.packPrice) || 0,
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
-    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => ({
+    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
+      const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+      return {
         ...num,
         price: parseFloat(num.price) || 0,
-        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`
-    })) : []
+        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
+        status: vipNumberDetails ? vipNumberDetails.status : 'unknown'
+      };
+    }) : []
   };
 };
 
@@ -68,16 +72,35 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
+  const [allVipNumbers, setAllVipNumbers] = useState([]); // For checking pack item status
   const [categoryItems, setCategoryItems] = useState([]);
   const [displayedItems, setDisplayedItems] = useState([]);
   const [isLoadingCategory, setIsLoadingCategory] = useState(true);
+  const [isLoadingVipNumbers, setIsLoadingVipNumbers] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
-  const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); // For pack quantity filter
+  const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); 
 
   const slug = params?.slug;
   const categoryDisplayType = searchParams.get('type') === 'packs' ? 'pack' : 'individual';
-  const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); // 2 to 7
+  const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); 
+
+  useEffect(() => {
+    if (categoryDisplayType === 'pack') {
+      setIsLoadingVipNumbers(true);
+      const vipNumbersQuery = query(collection(db, "vipNumbers")); // Fetch all for status check
+      const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
+        setAllVipNumbers(snapshot.docs.map(transformVipNumberData));
+        setIsLoadingVipNumbers(false);
+      }, (error) => {
+        console.error("Error fetching VIP numbers for pack status:", error);
+        setIsLoadingVipNumbers(false);
+      });
+      return () => unsubscribeVipNumbers();
+    } else {
+      setIsLoadingVipNumbers(false); // Not needed for individual VIP number categories
+    }
+  }, [categoryDisplayType]);
 
   useEffect(() => {
     if (slug) {
@@ -107,9 +130,11 @@ export default function CategoryPage() {
   }, [slug, toast]);
 
   useEffect(() => {
-    if (slug && categoryDetails !== undefined) {
+    if (slug && categoryDetails !== undefined && !isLoadingVipNumbers) { // Wait for VIP numbers if fetching packs
       setIsLoadingItems(true);
       let itemsQuery;
+      const allVipNumbersMap = new Map(allVipNumbers.map(num => [num.id, num]));
+
       if (categoryDisplayType === 'pack') {
         itemsQuery = query(
           collection(db, "numberPacks"), 
@@ -125,8 +150,10 @@ export default function CategoryPage() {
       }
       
       const unsubscribeItems = onSnapshot(itemsQuery, (querySnapshot) => {
-        const items = querySnapshot.docs.map(
-          categoryDisplayType === 'pack' ? transformNumberPackData : transformVipNumberData
+        const items = querySnapshot.docs.map(doc => 
+            categoryDisplayType === 'pack' 
+            ? transformNumberPackData(doc, allVipNumbersMap) 
+            : transformVipNumberData(doc)
         );
         setCategoryItems(items);
         setIsLoadingItems(false);
@@ -140,7 +167,7 @@ export default function CategoryPage() {
     } else if (!slug) {
         setIsLoadingItems(false);
     }
-  }, [slug, categoryDetails, categoryDisplayType, toast]);
+  }, [slug, categoryDetails, categoryDisplayType, toast, isLoadingVipNumbers, allVipNumbers]);
 
   useEffect(() => {
     if (isLoadingItems) return;
@@ -188,14 +215,14 @@ export default function CategoryPage() {
     addToCart(item);
     toast({
       title: "Added to Cart",
-      description: `${itemName} has been added to your cart. Proceeding to checkout.`,
+      description: `${itemName} ${item.type === 'pack' ? '(selection)' : ''} has been added to your cart. Proceeding to checkout.`,
     });
     router.push('/checkout');
   }, [addToCart, toast, router]);
 
   const handleAddToCart = useCallback((item) => {
     const itemName = item.type === 'pack' ? `${item.name} (Selection)` : item.number;
-    addToCart(item); // CartContext now handles selectedNumbers for packs
+    addToCart(item); 
     toast({
       title: "Added to Cart",
       description: `${itemName} has been added to your cart.`,
@@ -203,18 +230,18 @@ export default function CategoryPage() {
   }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    toggleFavorite(item); // Favorites still use main item ID
+    toggleFavorite(item); 
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
 
   const renderSkeletons = (count) => (
     Array.from({ length: count }).map((_, index) => (
-      <VipNumberCardSkeleton key={`skeleton-${index}`} /> // Consider pack skeleton if very different
+      <VipNumberCardSkeleton key={`skeleton-${index}`} /> 
     ))
   );
 
-  const isLoading = isLoadingCategory || isLoadingItems;
+  const isLoading = isLoadingCategory || isLoadingItems || (categoryDisplayType === 'pack' && isLoadingVipNumbers);
 
   if (isLoading) {
     return (
@@ -289,11 +316,11 @@ export default function CategoryPage() {
           {displayedItems.map((item) => (
             item.type === 'pack' ? (
               <NumberPackCard
-                key={item.id + (item.selectedNumbers ? JSON.stringify(item.selectedNumbers.map(sn => sn.id)) : '')} // Key needs to be unique for selections
+                key={item.id + (item.selectedNumbers ? JSON.stringify(item.selectedNumbers.map(sn => sn.id)) : '')} 
                 packDetails={item}
                 onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
                 onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
-                onToggleFavorite={handleToggleFavorite} // Favorites still use main pack ID
+                onToggleFavorite={handleToggleFavorite} 
                 isFavorite={isFavorite(item.id)}
               />
             ) : (
