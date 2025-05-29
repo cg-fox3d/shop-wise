@@ -96,11 +96,11 @@ export default function CheckoutPage() {
       // Extract the original VIP number document IDs
       const selectedOriginalVipNumberIds = cartItems.flatMap(item => {
         if (item.type === 'pack' && item.selectedNumbers) {
-          // For packs, map over selectedNumbers and get their 'originalVipId'
-          // This 'originalVipId' MUST exist on each number object within the pack's data from Firestore
+          // For packs, map over selectedNumbers and get their 'originalVipNumberId'
+          // This 'originalVipNumberId' MUST exist on each number object within the pack's data from Firestore
           console.log('Selected Numbers:', item.selectedNumbers);
-          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId))
-          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId).filter(id => id); // filter out undefined/null
+          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId)) // Corrected field name
+          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId).filter(id => id); // Corrected field name & filter out undefined/null
         } else if (item.type === 'vipNumber') { // This 'type' is set by transformVipNumberData
           // For individual VIP numbers, item.id is its Firestore document ID.
           return [item.id];

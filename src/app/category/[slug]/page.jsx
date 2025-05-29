@@ -41,7 +41,7 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-      const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId); // Corrected field name
       const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
       return {
         ...num,
@@ -351,4 +351,3 @@ export default function CategoryPage() {
     </div>
   );
 }
-

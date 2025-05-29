@@ -36,10 +36,10 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-        const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+        const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId); // Corrected field name
         const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown'; // Default to 'unknown' if not found in vipNumbers
         // For debugging: log status mapping for each number in a pack
-        // console.log(`Pack ${doc.id}, Num originalVipId ${num.originalVipId}: Found in map? ${!!vipNumberDetails}. Mapped Status: ${currentStatus}. Actual VIP status if found: ${vipNumberDetails?.status}`);
+        // console.log(`Pack ${doc.id}, Num originalVipNumberId ${num.originalVipNumberId}: Found in map? ${!!vipNumberDetails}. Mapped Status: ${currentStatus}. Actual VIP status if found: ${vipNumberDetails?.status}`);
         return {
             ...num,
             price: parseFloat(num.price) || 0,
