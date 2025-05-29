@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Search, Smartphone, Tags, Users, DollarSign } from 'lucide-react'; // Using Tags for price
+import { Search, Smartphone, Tags, DollarSign } from 'lucide-react';
 
 export default function SearchBar() {
   const router = useRouter();
-  const [activeSearchType, setActiveSearchType] = useState('digits'); // 'digits', 'price', 'family'
+  const [activeSearchType, setActiveSearchType] = useState('digits'); // 'digits', 'price'
   const [searchTerm, setSearchTerm] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -20,12 +20,11 @@ export default function SearchBar() {
     premiumSearch: false,
     numerologySearch: false,
     exactDigitPlacement: false,
-    mostContains: false,
+    // mostContains: false, // This option was disabled, can be removed or kept as is
   });
 
   const handleSearchTypeChange = (type) => {
     setActiveSearchType(type);
-    // Reset specific inputs when changing search type to avoid confusion
     if (type !== 'digits') setSearchTerm('');
     if (type !== 'price') {
       setMinPrice('');
@@ -48,9 +47,6 @@ export default function SearchBar() {
     } else if (activeSearchType === 'price') {
         if (minPrice.trim()) queryParams.append('minPrice', minPrice.trim());
         if (maxPrice.trim()) queryParams.append('maxPrice', maxPrice.trim());
-        // If neither min nor max price is set for price search, it will show all items of type 'vipNumber' or 'pack' depending on default behavior in search-results.
-    } else if (activeSearchType === 'family' && searchTerm.trim()) { // Family pack can also have a search term
-        queryParams.append('term', searchTerm.trim());
     }
     
     Object.entries(searchOptions).forEach(([key, value]) => {
@@ -64,7 +60,7 @@ export default function SearchBar() {
 
   return (
     <div className="p-4 md:p-6 bg-card shadow-md rounded-lg">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
         <Button
           variant={activeSearchType === 'digits' ? 'default' : 'outline'}
           onClick={() => handleSearchTypeChange('digits')}
@@ -78,13 +74,6 @@ export default function SearchBar() {
           className="w-full justify-center py-3"
         >
           <Tags className="mr-2 h-5 w-5" /> Search by Price
-        </Button>
-        <Button
-          variant={activeSearchType === 'family' ? 'default' : 'outline'}
-          onClick={() => handleSearchTypeChange('family')}
-          className="w-full justify-center py-3"
-        >
-          <Users className="mr-2 h-5 w-5" /> Family Pack
         </Button>
       </div>
 
@@ -152,39 +141,16 @@ export default function SearchBar() {
             </Button>
           </div>
         )}
-
-        {activeSearchType === 'family' && (
-           <div className="flex flex-col sm:flex-row gap-2">
-             <div className="flex-grow relative">
-                <Input
-                    id="search-input-family"
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search pack name or description..."
-                    className="h-12 text-base"
-                    aria-label="Search Family Packs"
-                />
-                <Label htmlFor="search-input-family" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
-                    Search Pack Name/Description
-                </Label>
-             </div>
-            <Button type="submit" className="h-12 px-6 sm:w-auto w-full">
-              <Search className="mr-2 h-5 w-5" /> SEARCH PACKS
-            </Button>
-          </div>
-        )}
       </form>
 
-      {/* Common Search Options - consider if all apply to price/family search */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
         <div className="flex items-center space-x-2">
           <Checkbox 
             id="globalSearch" 
             checked={searchOptions.globalSearch} 
             onCheckedChange={() => handleOptionChange('globalSearch')}
           />
-          <Label htmlFor="globalSearch" className="font-normal">Global Search <span className="text-muted-foreground text-xs">(if applicable)</span></Label>
+          <Label htmlFor="globalSearch" className="font-normal">Global Search <span className="text-muted-foreground text-xs">(price, etc.)</span></Label>
         </div>
         <div className="flex items-center space-x-2">
           <Checkbox 
@@ -194,7 +160,7 @@ export default function SearchBar() {
           />
           <Label htmlFor="premiumSearch" className="font-normal">Premium Only</Label>
         </div>
-        {activeSearchType === 'digits' && ( // Only show these for digit search
+        {activeSearchType === 'digits' && (
             <>
                 <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -211,15 +177,6 @@ export default function SearchBar() {
                     onCheckedChange={() => handleOptionChange('exactDigitPlacement')}
                 />
                 <Label htmlFor="exactDigitPlacement" className="font-normal">Exact Start</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                <Checkbox 
-                    id="mostContains" 
-                    checked={searchOptions.mostContains}
-                    onCheckedChange={() => handleOptionChange('mostContains')}
-                    disabled // Placeholder
-                />
-                <Label htmlFor="mostContains" className="font-normal text-muted-foreground">Most Contains (N/A)</Label>
                 </div>
             </>
         )}
