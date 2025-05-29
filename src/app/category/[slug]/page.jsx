@@ -17,8 +17,47 @@ import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, doc, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, limit, getDoc } from 'firebase/firestore'; // Added getDoc
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Dynamic metadata generation
+export async function generateMetadata({ params }) {
+  const slug = params?.slug;
+  let categoryTitle = "Category";
+  let description = `Browse VIP numbers and packs at NumbersGuru.`;
+
+  if (slug) {
+    try {
+      const categoryQuery = query(collection(db, "categories"), where("slug", "==", slug), limit(1));
+      const categorySnapshot = await getDocs(categoryQuery);
+      if (!categorySnapshot.empty) {
+        const categoryData = categorySnapshot.docs[0].data();
+        categoryTitle = categoryData.title || slug;
+        description = `Explore ${categoryTitle} VIP and fancy mobile numbers. Find unique Indian phone numbers in the ${categoryTitle} collection at NumbersGuru.`;
+      } else {
+        categoryTitle = `Category ${slug} not found`;
+        description = `The category you are looking for does not exist on NumbersGuru.`;
+      }
+    } catch (error) {
+      console.error("Error fetching category for metadata:", error);
+      categoryTitle = "Error loading category";
+      description = "Error loading category details for NumbersGuru.";
+    }
+  }
+
+  return {
+    title: `${categoryTitle}`, // Template in layout.jsx will add "| NumbersGuru"
+    description: description,
+    openGraph: {
+      title: `${categoryTitle} | NumbersGuru`,
+      description: description,
+    },
+    twitter: {
+      title: `${categoryTitle} | NumbersGuru`,
+      description: description,
+    },
+  };
+}
 
 
 const transformVipNumberData = (doc) => {
@@ -41,7 +80,7 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId); // Corrected field name
+      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId); 
       const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
       return {
         ...num,
@@ -77,7 +116,7 @@ export default function CategoryPage() {
   const [categoryItems, setCategoryItems] = useState([]);
   const [displayedItems, setDisplayedItems] = useState([]);
   const [isLoadingCategory, setIsLoadingCategory] = useState(true);
-  const [isLoadingVipNumbersGlobal, setIsLoadingVipNumbersGlobal] = useState(true); // For global VIP numbers if needed for packs
+  const [isLoadingVipNumbersGlobal, setIsLoadingVipNumbersGlobal] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
   const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); 
@@ -87,7 +126,6 @@ export default function CategoryPage() {
   const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); 
 
   useEffect(() => {
-    // Always fetch all VIP numbers if we might display packs, for their status.
     setIsLoadingVipNumbersGlobal(true);
     const vipNumbersQuery = query(collection(db, "vipNumbers"));
     const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
@@ -137,7 +175,7 @@ export default function CategoryPage() {
         itemsQuery = query(
           collection(db, "numberPacks"), 
           where("categorySlug", "==", slug),
-          where("status", "==", "available") // Pack's own status
+          where("status", "==", "available") 
         );
       } else {
         itemsQuery = query(
@@ -152,7 +190,7 @@ export default function CategoryPage() {
         if (categoryDisplayType === 'pack') {
           processedItems = querySnapshot.docs
             .map(doc => transformNumberPackData(doc, allVipNumbersMap))
-            .filter(pack => pack.numbers.some(num => num.status === 'available')); // Filter out fully sold packs
+            .filter(pack => pack.numbers.some(num => num.status === 'available'));
         } else {
           processedItems = querySnapshot.docs.map(doc => transformVipNumberData(doc));
         }
@@ -238,7 +276,6 @@ export default function CategoryPage() {
 
   const renderSkeletons = (count) => (
     Array.from({ length: count }).map((_, index) => (
-      // Consider different skeleton for packs if layout is very different
       <VipNumberCardSkeleton key={`skeleton-${index}`} /> 
     ))
   );
@@ -276,7 +313,7 @@ export default function CategoryPage() {
         </p>
       </div>
 
-      {(categoryItems.length > 0 || digitSearchTerm || selectedPackQuantity) && ( // Show search/filter if there were items initially or if a filter is active
+      {(categoryItems.length > 0 || digitSearchTerm || selectedPackQuantity) && (
         <div className="my-6 p-4 bg-card border rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center">
           <div className="flex-grow w-full md:w-auto">
             <Label htmlFor="category-search-input" className="text-base font-semibold mb-1 block">
