@@ -4,7 +4,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import VipNumberCard from '@/components/VipNumberCard';
-// NumberPackCard and related logic for packs were removed as per earlier instruction
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,15 +56,14 @@ export default function SearchResultsPageClient() {
 
   useEffect(() => {
     setIsLoading(true);
-    setPage(1); // Reset page on new search
+    setPage(1); 
 
-    // Since "family pack" search was removed, this page primarily deals with vipNumbers
+    // Only fetch vipNumbers as per the simplified search logic
     const itemsQuery = query(collection(db, "vipNumbers"), where("status", "==", "available"));
 
     const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
       const items = snapshot.docs.map(transformVipNumberData);
       setAllFetchedItems(items);
-      // Filtering will now happen in the next useEffect
     }, (error) => {
       console.error("Error fetching VIP numbers for search:", error);
       toast({
@@ -74,15 +72,14 @@ export default function SearchResultsPageClient() {
         variant: "destructive",
       });
       setAllFetchedItems([]);
-      setIsLoading(false); // Ensure loading stops on error
+      setIsLoading(false); 
     });
     return () => unsubscribe();
-  }, [searchParamsHook.toString(), toast]); // Re-run if search params change to fetch new base data
+  }, [searchParamsHook.toString(), toast]); 
 
   useEffect(() => {
-    // This effect handles filtering whenever allFetchedItems or searchParams change
     if (allFetchedItems.length === 0 && searchParamsHook.toString()) {
-      setIsLoading(false); // No items to filter, stop loading
+      setIsLoading(false); 
       setFilteredItems([]);
       setDisplayedItems([]);
       setHasMore(false);
@@ -91,7 +88,7 @@ export default function SearchResultsPageClient() {
     if(allFetchedItems.length > 0) setIsLoading(true);
 
 
-    let results = [...allFetchedItems]; // Start with all available VIP numbers
+    let results = [...allFetchedItems]; 
 
     const minPriceNum = minPriceParam ? parseFloat(minPriceParam) : null;
     const maxPriceNum = maxPriceParam ? parseFloat(maxPriceParam) : null;
@@ -129,7 +126,7 @@ export default function SearchResultsPageClient() {
     }
       
     setFilteredItems(results);
-    setDisplayedItems(results.slice(0, ITEMS_PER_PAGE * page)); // Use current page
+    setDisplayedItems(results.slice(0, ITEMS_PER_PAGE * page)); 
     setHasMore(results.length > ITEMS_PER_PAGE * page);
     setIsLoading(false);
     
@@ -139,7 +136,6 @@ export default function SearchResultsPageClient() {
   const loadMoreItems = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
-    // Simulate async loading for better UX, though data is already client-side
     setTimeout(() => { 
       const nextPage = page + 1;
       const newItems = filteredItems.slice(0, nextPage * ITEMS_PER_PAGE);
@@ -169,7 +165,7 @@ export default function SearchResultsPageClient() {
   };
   
   const handleBookNow = useCallback((item) => {
-    const itemName = item.number; // Assuming itemType is 'vipNumber'
+    const itemName = item.number; 
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id && cartItem.type === item.type);
 
     if (!isInCart) {
@@ -183,7 +179,7 @@ export default function SearchResultsPageClient() {
   }, [addProductToCart, toast, cartItems, router]);
 
   const handleAddToCart = useCallback((item) => {
-    const itemName = item.number; // Assuming itemType is 'vipNumber'
+    const itemName = item.number; 
     const isInCart = cartItems.some(cartItem => cartItem.id === item.id && cartItem.type === item.type);
     
     if (isInCart) {
@@ -202,7 +198,7 @@ export default function SearchResultsPageClient() {
 
   const handleToggleFavorite = useCallback((item) => {
     toggleFavorite(item);
-    const itemName = item.number; // Assuming itemType is 'vipNumber'
+    const itemName = item.number; 
     toast({ title: checkIsFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, checkIsFavorite, toast]);
   
