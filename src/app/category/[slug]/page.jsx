@@ -42,11 +42,12 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
       const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+      const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
       return {
         ...num,
         price: parseFloat(num.price) || 0,
         id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
-        status: vipNumberDetails ? vipNumberDetails.status : 'unknown'
+        status: currentStatus
       };
     }) : []
   };
@@ -72,11 +73,11 @@ export default function CategoryPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const [categoryDetails, setCategoryDetails] = useState(null);
-  const [allVipNumbers, setAllVipNumbers] = useState([]); // For checking pack item status
+  const [allVipNumbers, setAllVipNumbers] = useState([]);
   const [categoryItems, setCategoryItems] = useState([]);
   const [displayedItems, setDisplayedItems] = useState([]);
   const [isLoadingCategory, setIsLoadingCategory] = useState(true);
-  const [isLoadingVipNumbers, setIsLoadingVipNumbers] = useState(true);
+  const [isLoadingVipNumbersGlobal, setIsLoadingVipNumbersGlobal] = useState(true); // For global VIP numbers if needed for packs
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
   const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); 
@@ -86,21 +87,18 @@ export default function CategoryPage() {
   const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); 
 
   useEffect(() => {
-    if (categoryDisplayType === 'pack') {
-      setIsLoadingVipNumbers(true);
-      const vipNumbersQuery = query(collection(db, "vipNumbers")); // Fetch all for status check
-      const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
-        setAllVipNumbers(snapshot.docs.map(transformVipNumberData));
-        setIsLoadingVipNumbers(false);
-      }, (error) => {
-        console.error("Error fetching VIP numbers for pack status:", error);
-        setIsLoadingVipNumbers(false);
-      });
-      return () => unsubscribeVipNumbers();
-    } else {
-      setIsLoadingVipNumbers(false); // Not needed for individual VIP number categories
-    }
-  }, [categoryDisplayType]);
+    // Always fetch all VIP numbers if we might display packs, for their status.
+    setIsLoadingVipNumbersGlobal(true);
+    const vipNumbersQuery = query(collection(db, "vipNumbers"));
+    const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
+      setAllVipNumbers(snapshot.docs.map(transformVipNumberData));
+      setIsLoadingVipNumbersGlobal(false);
+    }, (error) => {
+      console.error("Error fetching VIP numbers for pack status:", error);
+      setIsLoadingVipNumbersGlobal(false);
+    });
+    return () => unsubscribeVipNumbers();
+  }, []);
 
   useEffect(() => {
     if (slug) {
@@ -130,7 +128,7 @@ export default function CategoryPage() {
   }, [slug, toast]);
 
   useEffect(() => {
-    if (slug && categoryDetails !== undefined && !isLoadingVipNumbers) { // Wait for VIP numbers if fetching packs
+    if (slug && categoryDetails !== undefined && !isLoadingVipNumbersGlobal) {
       setIsLoadingItems(true);
       let itemsQuery;
       const allVipNumbersMap = new Map(allVipNumbers.map(num => [num.id, num]));
@@ -139,7 +137,7 @@ export default function CategoryPage() {
         itemsQuery = query(
           collection(db, "numberPacks"), 
           where("categorySlug", "==", slug),
-          where("status", "==", "available")
+          where("status", "==", "available") // Pack's own status
         );
       } else {
         itemsQuery = query(
@@ -150,12 +148,15 @@ export default function CategoryPage() {
       }
       
       const unsubscribeItems = onSnapshot(itemsQuery, (querySnapshot) => {
-        const items = querySnapshot.docs.map(doc => 
-            categoryDisplayType === 'pack' 
-            ? transformNumberPackData(doc, allVipNumbersMap) 
-            : transformVipNumberData(doc)
-        );
-        setCategoryItems(items);
+        let processedItems = [];
+        if (categoryDisplayType === 'pack') {
+          processedItems = querySnapshot.docs
+            .map(doc => transformNumberPackData(doc, allVipNumbersMap))
+            .filter(pack => pack.numbers.some(num => num.status === 'available')); // Filter out fully sold packs
+        } else {
+          processedItems = querySnapshot.docs.map(doc => transformVipNumberData(doc));
+        }
+        setCategoryItems(processedItems);
         setIsLoadingItems(false);
       }, (error) => {
         console.error(`Error fetching items for category ${slug} (type: ${categoryDisplayType}):`, error);
@@ -167,7 +168,7 @@ export default function CategoryPage() {
     } else if (!slug) {
         setIsLoadingItems(false);
     }
-  }, [slug, categoryDetails, categoryDisplayType, toast, isLoadingVipNumbers, allVipNumbers]);
+  }, [slug, categoryDetails, categoryDisplayType, toast, isLoadingVipNumbersGlobal, allVipNumbers]);
 
   useEffect(() => {
     if (isLoadingItems) return;
@@ -237,11 +238,12 @@ export default function CategoryPage() {
 
   const renderSkeletons = (count) => (
     Array.from({ length: count }).map((_, index) => (
+      // Consider different skeleton for packs if layout is very different
       <VipNumberCardSkeleton key={`skeleton-${index}`} /> 
     ))
   );
 
-  const isLoading = isLoadingCategory || isLoadingItems || (categoryDisplayType === 'pack' && isLoadingVipNumbers);
+  const isLoading = isLoadingCategory || isLoadingItems || isLoadingVipNumbersGlobal;
 
   if (isLoading) {
     return (
@@ -274,7 +276,7 @@ export default function CategoryPage() {
         </p>
       </div>
 
-      {(categoryItems.length > 0 || digitSearchTerm) && (
+      {(categoryItems.length > 0 || digitSearchTerm || selectedPackQuantity) && ( // Show search/filter if there were items initially or if a filter is active
         <div className="my-6 p-4 bg-card border rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center">
           <div className="flex-grow w-full md:w-auto">
             <Label htmlFor="category-search-input" className="text-base font-semibold mb-1 block">
@@ -311,7 +313,7 @@ export default function CategoryPage() {
         </div>
       )}
 
-      {displayedItems.length > 0 && (
+      {displayedItems.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {displayedItems.map((item) => (
             item.type === 'pack' ? (
@@ -335,12 +337,10 @@ export default function CategoryPage() {
             )
           ))}
         </div>
-      )}
-      
-      {!isLoadingItems && displayedItems.length === 0 && (
-        <p className="text-center text-muted-foreground text-lg py-10">
-          No {categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found matching your criteria in this category.
-        </p>
+      ) : (
+         <p className="text-center text-muted-foreground text-lg py-10">
+            {isLoading ? "Loading items..." : `No ${categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found matching your criteria in this category.`}
+          </p>
       )}
       
       <LoginModal
@@ -351,3 +351,4 @@ export default function CategoryPage() {
     </div>
   );
 }
+

@@ -12,7 +12,7 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, where, getDocs } from 'firebase/firestore';
 
-// Helper to transform Firestore doc data
+// Helper to transform Firestore doc data for VIP numbers
 const transformVipNumberData = (doc) => {
   const data = doc.data();
   return {
@@ -20,12 +20,15 @@ const transformVipNumberData = (doc) => {
     ...data,
     price: parseFloat(data.price) || 0,
     originalPrice: data.originalPrice ? parseFloat(data.originalPrice) : undefined,
-    type: 'vipNumber' // Explicitly define type
+    type: 'vipNumber'
   };
 };
 
+// Helper to transform Firestore doc data for Number Packs
 const transformNumberPackData = (doc, allVipNumbersMap) => {
   const data = doc.data();
+  // For debugging: log the pack being transformed and the map content if needed
+  // console.log(`Transforming pack ${doc.id}`, data.numbers, allVipNumbersMap.size > 0 ? 'Map has entries' : 'Map is EMPTY');
   return {
     id: doc.id,
     ...data,
@@ -34,11 +37,14 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
         const vipNumberDetails = allVipNumbersMap.get(num.originalVipId);
+        const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown'; // Default to 'unknown' if not found in vipNumbers
+        // For debugging: log status mapping for each number in a pack
+        // console.log(`Pack ${doc.id}, Num originalVipId ${num.originalVipId}: Found in map? ${!!vipNumberDetails}. Mapped Status: ${currentStatus}. Actual VIP status if found: ${vipNumberDetails?.status}`);
         return {
             ...num,
             price: parseFloat(num.price) || 0,
-            id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`, // Ensure num has an id
-            status: vipNumberDetails ? vipNumberDetails.status : 'unknown' // Default to 'unknown' or 'sold' if not found
+            id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
+            status: currentStatus
         };
     }) : []
   };
@@ -54,10 +60,10 @@ const transformCategoryData = (doc) => {
 
 export default function Home() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
-  const [isLoadingVipNumbers, setIsLoadingVipNumbers] = useState(true); // For VIP numbers loading
-  const [isLoadingItems, setIsLoadingItems] = useState(true); // General items loading (packs)
+  const [isLoadingVipNumbers, setIsLoadingVipNumbers] = useState(true);
+  const [isLoadingItems, setIsLoadingItems] = useState(true); // General items loading
   const [categoriesData, setCategoriesData] = useState([]);
-  const [allVipNumbers, setAllVipNumbers] = useState([]); // Store all VIP numbers
+  const [allVipNumbers, setAllVipNumbers] = useState([]); // Store all VIP numbers for status checks
   
   const { toast } = useToast();
   const router = useRouter();
@@ -69,7 +75,8 @@ export default function Home() {
 
   useEffect(() => {
     setIsLoadingVipNumbers(true);
-    const vipNumbersQuery = query(collection(db, "vipNumbers")); // Fetch all, or filter by status if needed globally
+    // Fetch all VIP numbers to get their statuses for pack updates
+    const vipNumbersQuery = query(collection(db, "vipNumbers"));
     const unsubscribeVipNumbers = onSnapshot(vipNumbersQuery, (snapshot) => {
       setAllVipNumbers(snapshot.docs.map(transformVipNumberData));
       setIsLoadingVipNumbers(false);
@@ -82,7 +89,7 @@ export default function Home() {
   }, [toast]);
 
   useEffect(() => {
-    if (isLoadingVipNumbers) return; // Wait for VIP numbers to load
+    if (isLoadingVipNumbers) return; // Wait for all VIP numbers to load their statuses
 
     setIsLoadingCategories(true);
     setIsLoadingItems(true);
@@ -100,12 +107,13 @@ export default function Home() {
           itemsQuery = query(
             collection(db, "numberPacks"), 
             where("categorySlug", "==", category.slug),
-            where("status", "==", "available")
+            where("status", "==", "available") // This status is for the pack document itself
           );
           const packSnapshot = await getDocs(itemsQuery);
-          items = packSnapshot.docs.map(doc => transformNumberPackData(doc, allVipNumbersMap));
+          items = packSnapshot.docs
+            .map(doc => transformNumberPackData(doc, allVipNumbersMap))
+            .filter(pack => pack.numbers.some(num => num.status === 'available')); // Filter out packs where all numbers are sold
         } else { 
-          // For 'individual' categories, items are directly from allVipNumbers filtered by categorySlug and status
           items = allVipNumbers.filter(
             num => num.categorySlug === category.slug && num.status === 'available'
           );
@@ -123,7 +131,6 @@ export default function Home() {
           description: "Could not load items for some categories.",
           variant: "destructive",
         });
-        // Fallback to categories with empty items if Promise.all fails for items
         setCategoriesData(fetchedCategories.map(cat => ({ ...cat, items: [] })));
       } finally {
         setIsLoadingCategories(false);
@@ -214,12 +221,13 @@ export default function Home() {
             <p className="text-center py-10 text-muted-foreground">No categories or items found.</p>
         )}
         {categoriesData.map((category) => (
+          (category.items && category.items.length > 0) || category.type !== 'pack' ? // Render section if it has items, or if it's not a pack category (to show empty state within section)
           <CategorySection
             key={category.id}
             title={category.title}
             slug={category.slug}
             items={category.items || []}
-            isLoading={overallLoading && category.items === undefined} // isLoading is true if category items not yet processed
+            isLoading={overallLoading && category.items === undefined}
             categoryType={category.type || 'individual'}
             onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
             onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
@@ -227,6 +235,7 @@ export default function Home() {
             isFavorite={(itemId) => isFavorite(itemId)}
             cartItems={cartItems} 
           />
+          : null // Don't render the category section at all if it's a pack category and all its packs were filtered out
         ))}
       </div>
 
