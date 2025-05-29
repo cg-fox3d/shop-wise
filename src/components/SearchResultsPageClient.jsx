@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import VipNumberCard from '@/components/VipNumberCard';
-import NumberPackCard from '@/components/NumberPackCard'; // Keep if packs might be searched indirectly or if you want to re-add
+// NumberPackCard and related logic for packs were removed as per earlier instruction
 import VipNumberCardSkeleton from '@/components/skeletons/VipNumberCardSkeleton';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,30 +27,6 @@ const transformVipNumberData = (doc) => {
     type: 'vipNumber'
   };
 };
-
-// Keep transformNumberPackData in case you re-introduce pack searching
-// or if other parts of your app might use it via a shared utility
-const transformNumberPackData = (doc, allVipNumbersMap) => {
-  const data = doc.data();
-  return {
-    id: doc.id,
-    ...data,
-    packPrice: parseFloat(data.packPrice) || 0,
-    totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
-    type: 'pack',
-    numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-        const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId);
-        const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
-        return {
-            ...num,
-            price: parseFloat(num.price) || 0,
-            id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
-            status: currentStatus
-        };
-    }) : []
-  };
-};
-
 
 export default function SearchResultsPageClient() {
   const searchParamsHook = useSearchParams();
@@ -79,13 +55,11 @@ export default function SearchResultsPageClient() {
   const numerologySearch = searchParamsHook.get('numerologySearch') === 'true';
   const exactDigitPlacement = searchParamsHook.get('exactDigitPlacement') === 'true';
 
-  // Removed itemType state, as this page now primarily focuses on vipNumbers
-  // If pack search is re-introduced, this logic might need adjustment.
-
   useEffect(() => {
     setIsLoading(true);
     setPage(1); // Reset page on new search
 
+    // Since "family pack" search was removed, this page primarily deals with vipNumbers
     const itemsQuery = query(collection(db, "vipNumbers"), where("status", "==", "available"));
 
     const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
@@ -264,8 +238,6 @@ export default function SearchResultsPageClient() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {displayedItems.map((item) => (
-               // This page now primarily renders VipNumberCard
-               // If pack search were re-introduced, conditional rendering would be needed here
               <VipNumberCard
                 key={item.id}
                 numberDetails={item}
@@ -304,4 +276,3 @@ export default function SearchResultsPageClient() {
     </div>
   );
 }
-
