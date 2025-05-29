@@ -93,41 +93,32 @@ export default function CheckoutPage() {
       }).join(', ');
       const transactionDescription = `Purchase of ${itemDescriptions}`;
 
-      // Extract the original VIP number document IDs
       const selectedOriginalVipNumberIds = cartItems.flatMap(item => {
         if (item.type === 'pack' && item.selectedNumbers) {
-          // For packs, map over selectedNumbers and get their 'originalVipNumberId'
-          // This 'originalVipNumberId' MUST exist on each number object within the pack's data from Firestore
-          console.log('Selected Numbers:', item.selectedNumbers);
-          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId)) // Corrected field name
-          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId).filter(id => id); // Corrected field name & filter out undefined/null
-        } else if (item.type === 'vipNumber') { // This 'type' is set by transformVipNumberData
-          // For individual VIP numbers, item.id is its Firestore document ID.
+          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId).filter(id => id);
+        } else if (item.type === 'vipNumber') {
           return [item.id];
         }
-        return []; 
-      }).filter(id => id); // Ensure no undefined/null ids in the final list
+        return [];
+      }).filter(id => id);
 
-      if (selectedOriginalVipNumberIds.length === 0) {
+      if (selectedOriginalVipNumberIds.length === 0 && cartItems.length > 0) { // Only warn if cart is not empty
         console.warn("No original VIP number IDs found in cart items for backend processing. This might be an issue if items were expected.");
-        // Depending on your business logic, you might want to throw an error here or proceed.
-        // For now, we'll proceed but log a warning.
       }
-      console.log('Sending selectedOriginalVipNumberIds to backend:', selectedOriginalVipNumberIds);
 
 
-      const order = await createRazorpayOrder({ 
-        amount: amountInPaise, 
+      const order = await createRazorpayOrder({
+        amount: amountInPaise,
         currency: 'INR',
         receipt: `r_u_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`,
-        notes: { 
-          userId: user.uid, 
+        notes: {
+          userId: user.uid,
           email: user.email,
           name: user.displayName,
           itemCount: cartItems.reduce((sum, item) => sum + (item.quantity || 1), 0),
           itemDetails: itemDescriptions,
-          selectedOriginalVipNumberIds: selectedOriginalVipNumberIds // Pass the correct IDs
-        } 
+          selectedOriginalVipNumberIds: selectedOriginalVipNumberIds
+        }
       });
 
       if (!order || !order.id) {
@@ -138,8 +129,8 @@ export default function CheckoutPage() {
         key: RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: "INR",
-        name: "ShopWave VIP Numbers",
-        description: transactionDescription.substring(0, 250), 
+        name: "NumbersGuru VIP Numbers",
+        description: transactionDescription.substring(0, 250),
         image: "/logo.svg", // Replace with your actual logo URL
         order_id: order.id,
         handler: async function (response) {
@@ -160,11 +151,11 @@ export default function CheckoutPage() {
           address: "Online Purchase"
         },
         theme: {
-          color: "#008080" // Teal color - you can adjust this to match your theme
+          color: "#008080"
         },
         modal: {
           ondismiss: function () {
-            console.log('Checkout form closed');
+            // console.log('Checkout form closed'); // Removed debug log
             toast({
               title: "Payment Cancelled",
               description: "You closed the payment window.",
@@ -209,7 +200,7 @@ export default function CheckoutPage() {
         id="razorpay-checkout-js"
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => {
-          console.log('Razorpay script loaded.');
+          // console.log('Razorpay script loaded.'); // Removed debug log
           setRazorpayLoaded(true);
         }}
         onError={(e) => {
@@ -233,7 +224,7 @@ export default function CheckoutPage() {
             {cartItems.map((item) => {
               const isPackSelection = item.type === 'pack' && item.selectedNumbers;
               const name = isPackSelection ? item.name : item.number;
-              const price = item.price; 
+              const price = item.price;
               const quantity = item.quantity || 1;
 
               return (

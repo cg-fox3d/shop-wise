@@ -54,21 +54,21 @@ export const CartProvider = ({ children }) => {
       if (existingItemIndex > -1) {
         // Item (or specific pack selection) already in cart, perhaps update quantity or do nothing
         // For now, we just log and don't add again if it's the exact same selection
-        console.log(`${product.name} (selection) is already in the cart.`);
+        // console.log(`${product.name} (selection) is already in the cart.`); // Removed debug log
         return prevItems;
       } else {
         // For 'pack' type, product.price is the dynamically calculated price of selectedNumbers
         // For 'vipNumber', product.price is its own price
         // Add type and cartId for robust identification
-        const newItem = { 
-          ...product, 
-          quantity: 1, 
+        const newItem = {
+          ...product,
+          quantity: 1,
           cartId: cartId, // Unique ID for this specific cart entry
           // Ensure 'type' is present, 'price' is the calculated one for packs
           type: product.type || (product.selectedNumbers ? 'pack' : 'vipNumber'),
-          price: product.price 
+          price: product.price
         };
-        console.log("newItem:", newItem);
+        // console.log("newItem:", newItem); // Removed debug log
         return [...prevItems, newItem];
       }
     });

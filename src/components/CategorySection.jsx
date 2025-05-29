@@ -20,15 +20,15 @@ import { Label } from '@/components/ui/label';
 const ITEMS_PER_SECTION = 10;
 const SCROLL_AMOUNT = 300; // Amount to scroll in pixels
 
-export default function CategorySection({ 
-  title, 
-  slug, 
-  items, 
-  isLoading, 
+export default function CategorySection({
+  title,
+  slug,
+  items,
+  isLoading,
   categoryType = 'individual', // 'individual' or 'pack'
-  onBookNow, 
-  onAddToCart, 
-  onToggleFavorite, 
+  onBookNow,
+  onAddToCart,
+  onToggleFavorite,
   isFavorite,
   cartItems
 }) {
@@ -44,7 +44,6 @@ export default function CategorySection({
       displayableItems = safeItems.filter(item => item.numbers && item.numbers.length === parseInt(selectedNumQuantity));
     }
     setFilteredDisplayItems(displayableItems.slice(0, ITEMS_PER_SECTION));
-    // console.log("FilteredDisplayItems: ", filteredDisplayItems)
   }, [safeItems, selectedNumQuantity, categoryType]);
 
 
@@ -67,12 +66,11 @@ export default function CategorySection({
     Array.from({ length: 5 }).map((_, index) => (
       <div key={`skeleton-${index}`} className="flex-shrink-0 w-[290px] md:w-[310px] lg:w-[330px]">
          {/* For pack skeletons, you might want a different one if layout is very distinct */}
-        <VipNumberCardSkeleton /> 
+        <VipNumberCardSkeleton />
       </div>
     ))
   );
 
-  console.log("FilteredDisplayItems: ", filteredDisplayItems);
   const renderItems = () => (
     filteredDisplayItems.map((item) => (
       <div key={item.id} className="flex-shrink-0 w-[290px] md:w-[310px] lg:w-[330px]">
@@ -139,7 +137,7 @@ export default function CategorySection({
           {showSeeMoreButton && slug && (
             <Button variant="outline" asChild className="h-9">
               <Link href={seeMoreLink}>
-                See More 
+                See More
                 {safeItems.length > ITEMS_PER_SECTION && ` (${categoryType === 'pack' && selectedNumQuantity ? safeItems.filter(item => item.numbers && item.numbers.length === parseInt(selectedNumQuantity)).length : safeItems.length} total)`}
               </Link>
             </Button>
@@ -150,7 +148,7 @@ export default function CategorySection({
         ref={scrollContainerRef}
         className="flex overflow-x-auto space-x-6 pb-4 scrollbar-hide"
       >
-        {isLoading ? renderSkeletons() : (filteredDisplayItems.length > 0 ? renderItems() : 
+        {isLoading ? renderSkeletons() : (filteredDisplayItems.length > 0 ? renderItems() :
           <p className="text-muted-foreground text-center py-4 w-full">
             No {categoryType === 'pack' ? (selectedNumQuantity ? `packs with ${selectedNumQuantity} numbers` : 'packs') : 'items'} found in this category.
           </p>

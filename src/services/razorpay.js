@@ -25,8 +25,8 @@
  * @throws {Error} If the backend API call fails or returns an error.
  */
 export async function createRazorpayOrder(orderDetails) {
-  console.log("Attempting to create order with details:", orderDetails);
-  
+  // console.log("Attempting to create order with details:", orderDetails); // Removed debug log
+
   try {
     const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/create-order', { // Your backend endpoint
       method: 'POST',
@@ -41,33 +41,30 @@ export async function createRazorpayOrder(orderDetails) {
       let errorPayload;
       try {
         errorPayload = await response.json();
-        console.log("Backend error (JSON):", errorPayload);
+        console.log("Backend error (JSON):", errorPayload); // Keep for detailed error
         if (errorPayload && errorPayload.message) {
           errorMessage = errorPayload.message;
         }
       } catch (jsonError) {
-        // If parsing JSON fails, try to get text
         try {
             const errorText = await response.text();
-            console.log("Backend error (Text):", errorText);
+            console.log("Backend error (Text):", errorText); // Keep for detailed error
             if (errorText) {
-              // Attempt to provide a snippet if it's a long HTML error page or similar
               errorMessage = errorText.length > 300 ? errorText.substring(0, 300) + "..." : errorText;
             }
         } catch (textError) {
-             console.log("Backend error (Non-JSON, Non-Text): Could not parse error response body.");
+             console.log("Backend error (Non-JSON, Non-Text): Could not parse error response body."); // Keep for detailed error
         }
       }
       throw new Error(errorMessage);
     }
 
     const orderData = await response.json();
-    console.log("Order created successfully:", orderData);
+    // console.log("Order created successfully:", orderData); // Removed debug log
     return orderData.order;
 
   } catch (error) {
-    console.error("Failed to create Razorpay order:", error);
-    // Ensure the error re-thrown is an Error instance
+    console.error("Failed to create Razorpay order:", error); // Keep
     if (error instanceof Error) {
         throw error;
     } else {
@@ -92,8 +89,8 @@ export async function createRazorpayOrder(orderDetails) {
  * @throws {Error} If the backend API call fails or verification fails.
  */
 export async function verifyPayment(verificationDetails) {
-  console.log("Attempting to verify payment with details:", verificationDetails);
-  
+  // console.log("Attempting to verify payment with details:", verificationDetails); // Removed debug log
+
   try {
     const response = await fetch('https://numbers-guru.netlify.app/.netlify/functions/verify-payment', { // Your backend endpoint
       method: 'POST',
@@ -108,30 +105,30 @@ export async function verifyPayment(verificationDetails) {
        let errorPayload;
        try {
          errorPayload = await response.json();
-         console.log("Backend error (JSON):", errorPayload);
+         console.log("Backend error (JSON):", errorPayload); // Keep for detailed error
          if (errorPayload && errorPayload.message) {
            errorMessage = errorPayload.message;
          }
        } catch (jsonError) {
          try {
              const errorText = await response.text();
-             console.log("Backend error (Text):", errorText);
+             console.log("Backend error (Text):", errorText); // Keep for detailed error
              if (errorText) {
                 errorMessage = errorText.length > 300 ? errorText.substring(0, 300) + "..." : errorText;
              }
          } catch (textError) {
-              console.log("Backend error (Non-JSON, Non-Text): Could not parse error response body for payment verification.");
+              console.log("Backend error (Non-JSON, Non-Text): Could not parse error response body for payment verification."); // Keep for detailed error
          }
        }
        throw new Error(errorMessage);
      }
 
-     const verificationResult = await response.json(); 
-     console.log("Payment verification result:", verificationResult);
+     const verificationResult = await response.json();
+     // console.log("Payment verification result:", verificationResult); // Removed debug log
      return verificationResult.success;
 
    } catch (error) {
-     console.error("Failed to verify Razorpay payment:", error);
+     console.error("Failed to verify Razorpay payment:", error); // Keep
      if (error instanceof Error) {
         throw error;
     } else {
