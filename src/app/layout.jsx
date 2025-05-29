@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://numbersguru.com'; // Fallback, update with your actual URL
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://varshavipnumbers.in'; // Fallback, update with your actual URL
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -27,7 +27,7 @@ export const metadata = {
     template: '%s | NumbersGuru',
   },
   description: 'Discover and purchase exclusive VIP, fancy, and choice Indian mobile numbers at NumbersGuru. Secure your unique phone number today!',
-  keywords: ['VIP mobile numbers India', 'fancy numbers India', 'choice mobile numbers', 'buy Indian phone numbers', 'special phone numbers India', 'NumbersGuru', 'Indian VIP SIM', 'premium mobile numbers'],
+  keywords: ['VIP mobile numbers India', 'fancy numbers India', 'choice mobile numbers', 'buy Indian phone numbers', 'special phone numbers India', 'NumbersGuru', 'Indian VIP SIM', 'premium mobile numbers', 'numbers', 'phonenumbers'],
   robots: {
     index: true,
     follow: true,
