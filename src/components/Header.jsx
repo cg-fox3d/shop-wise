@@ -67,7 +67,7 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="container flex h-14 items-center space-x-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary">
               <path d="M12 2l-8 4 8 4 8-4-8-4z" />
@@ -75,7 +75,7 @@ export default function Header() {
               <path d="M4 18l8 4 8-4" />
               <path d="M4 14l8 4 8-4" />
             </svg>
-            <span className="font-bold">ShopWave</span>
+            <span className="font-bold">NumbersGuru</span>
           </Link>
           <nav className="flex flex-1 items-center space-x-6 text-sm font-medium">
             <Link href="/" className="transition-colors hover:text-foreground/80 text-foreground/60">

@@ -177,8 +177,8 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-2">Discover Your VIP Number</h1>
-      <p className="text-muted-foreground mb-6">
+      <h1 className="text-4xl font-bold mb-2 text-center">Discover Your VIP Number</h1>
+      <p className="text-muted-foreground mb-6 text-center">
         Choose from a wide range of exclusive and fancy mobile numbers & packs.
       </p>
 

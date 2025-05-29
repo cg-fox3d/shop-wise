@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -6,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Search, Smartphone, Tags, Users } from 'lucide-react'; // Using Smartphone for digits, Tags for price, Users for family
+import { Search, Smartphone, Tags, Users, DollarSign } from 'lucide-react'; // Using Tags for price
 
 export default function SearchBar() {
   const router = useRouter();
   const [activeSearchType, setActiveSearchType] = useState('digits'); // 'digits', 'price', 'family'
   const [searchTerm, setSearchTerm] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
   const [searchOptions, setSearchOptions] = useState({
     globalSearch: true,
     premiumSearch: false,
@@ -22,7 +25,12 @@ export default function SearchBar() {
 
   const handleSearchTypeChange = (type) => {
     setActiveSearchType(type);
-    // Reset options or specific logic for search type if needed
+    // Reset specific inputs when changing search type to avoid confusion
+    if (type !== 'digits') setSearchTerm('');
+    if (type !== 'price') {
+      setMinPrice('');
+      setMaxPrice('');
+    }
   };
 
   const handleOptionChange = (option) => {
@@ -31,16 +39,20 @@ export default function SearchBar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!searchTerm.trim() && activeSearchType === 'digits') { // Only require searchTerm for digit search
-        // Potentially show a toast or validation message
-        return;
-    }
     
     const queryParams = new URLSearchParams();
     queryParams.append('type', activeSearchType);
-    if (searchTerm.trim()) {
+
+    if (activeSearchType === 'digits' && searchTerm.trim()) {
+        queryParams.append('term', searchTerm.trim());
+    } else if (activeSearchType === 'price') {
+        if (minPrice.trim()) queryParams.append('minPrice', minPrice.trim());
+        if (maxPrice.trim()) queryParams.append('maxPrice', maxPrice.trim());
+        // If neither min nor max price is set for price search, it will show all items of type 'vipNumber' or 'pack' depending on default behavior in search-results.
+    } else if (activeSearchType === 'family' && searchTerm.trim()) { // Family pack can also have a search term
         queryParams.append('term', searchTerm.trim());
     }
+    
     Object.entries(searchOptions).forEach(([key, value]) => {
       if (value) {
         queryParams.append(key, 'true');
@@ -76,19 +88,20 @@ export default function SearchBar() {
         </Button>
       </div>
 
-      {activeSearchType === 'digits' && (
-        <form onSubmit={handleSearch} className="mb-4">
+      <form onSubmit={handleSearch} className="mb-4">
+        {activeSearchType === 'digits' && (
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-grow relative">
               <Input
+                id="search-input-digits"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="E.g. 987"
+                placeholder="E.g. 987 or full number"
                 className="h-12 text-base"
                 aria-label="Enter Digits Here"
               />
-               <Label htmlFor="search-input" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
+               <Label htmlFor="search-input-digits" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
                 Enter Digits Here
               </Label>
             </div>
@@ -96,24 +109,74 @@ export default function SearchBar() {
               <Search className="mr-2 h-5 w-5" /> SEARCH
             </Button>
           </div>
-        </form>
-      )}
-      
-      {/* Search options for price and family pack can be added here if needed */}
-      {activeSearchType === 'price' && (
-         <p className="text-muted-foreground text-center my-4">Price search options coming soon.</p>
-         /* Example:
-         <form onSubmit={handleSearch} className="mb-4"> ... inputs for price range ... </form> 
-         */
-      )}
-      {activeSearchType === 'family' && (
-         <p className="text-muted-foreground text-center my-4">Family pack search options coming soon.</p>
-        /* Example:
-         <form onSubmit={handleSearch} className="mb-4"> ... inputs for family pack criteria ... </form> 
-         */
-      )}
+        )}
+        
+        {activeSearchType === 'price' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="min-price"
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="Min Price (₹)"
+                  className="h-12 text-base pl-10"
+                  aria-label="Minimum Price"
+                  min="0"
+                />
+                <Label htmlFor="min-price" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
+                  Min Price (₹)
+                </Label>
+              </div>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="max-price"
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="Max Price (₹)"
+                  className="h-12 text-base pl-10"
+                  aria-label="Maximum Price"
+                  min="0"
+                />
+                 <Label htmlFor="max-price" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
+                  Max Price (₹)
+                </Label>
+              </div>
+            </div>
+            <Button type="submit" className="h-12 px-6 w-full sm:w-auto">
+              <Search className="mr-2 h-5 w-5" /> SEARCH PRICE RANGE
+            </Button>
+          </div>
+        )}
 
+        {activeSearchType === 'family' && (
+           <div className="flex flex-col sm:flex-row gap-2">
+             <div className="flex-grow relative">
+                <Input
+                    id="search-input-family"
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search pack name or description..."
+                    className="h-12 text-base"
+                    aria-label="Search Family Packs"
+                />
+                <Label htmlFor="search-input-family" className="absolute -top-2 left-2 -mt-px inline-block bg-card px-1 text-xs font-medium text-muted-foreground">
+                    Search Pack Name/Description
+                </Label>
+             </div>
+            <Button type="submit" className="h-12 px-6 sm:w-auto w-full">
+              <Search className="mr-2 h-5 w-5" /> SEARCH PACKS
+            </Button>
+          </div>
+        )}
+      </form>
 
+      {/* Common Search Options - consider if all apply to price/family search */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm">
         <div className="flex items-center space-x-2">
           <Checkbox 
@@ -121,7 +184,7 @@ export default function SearchBar() {
             checked={searchOptions.globalSearch} 
             onCheckedChange={() => handleOptionChange('globalSearch')}
           />
-          <Label htmlFor="globalSearch" className="font-normal">Global Search <span className="text-muted-foreground text-xs">(Recommended)</span></Label>
+          <Label htmlFor="globalSearch" className="font-normal">Global Search <span className="text-muted-foreground text-xs">(if applicable)</span></Label>
         </div>
         <div className="flex items-center space-x-2">
           <Checkbox 
@@ -129,32 +192,37 @@ export default function SearchBar() {
             checked={searchOptions.premiumSearch}
             onCheckedChange={() => handleOptionChange('premiumSearch')}
           />
-          <Label htmlFor="premiumSearch" className="font-normal">Premium Search</Label>
+          <Label htmlFor="premiumSearch" className="font-normal">Premium Only</Label>
         </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="numerologySearch" 
-            checked={searchOptions.numerologySearch}
-            onCheckedChange={() => handleOptionChange('numerologySearch')}
-          />
-          <Label htmlFor="numerologySearch" className="font-normal">Numerology Search</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="exactDigitPlacement" 
-            checked={searchOptions.exactDigitPlacement}
-            onCheckedChange={() => handleOptionChange('exactDigitPlacement')}
-          />
-          <Label htmlFor="exactDigitPlacement" className="font-normal">Exact Digit Placement</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="mostContains" 
-            checked={searchOptions.mostContains}
-            onCheckedChange={() => handleOptionChange('mostContains')}
-          />
-          <Label htmlFor="mostContains" className="font-normal">Most Contains</Label>
-        </div>
+        {activeSearchType === 'digits' && ( // Only show these for digit search
+            <>
+                <div className="flex items-center space-x-2">
+                <Checkbox 
+                    id="numerologySearch" 
+                    checked={searchOptions.numerologySearch}
+                    onCheckedChange={() => handleOptionChange('numerologySearch')}
+                />
+                <Label htmlFor="numerologySearch" className="font-normal">Numerology (Sum)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                <Checkbox 
+                    id="exactDigitPlacement" 
+                    checked={searchOptions.exactDigitPlacement}
+                    onCheckedChange={() => handleOptionChange('exactDigitPlacement')}
+                />
+                <Label htmlFor="exactDigitPlacement" className="font-normal">Exact Start</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                <Checkbox 
+                    id="mostContains" 
+                    checked={searchOptions.mostContains}
+                    onCheckedChange={() => handleOptionChange('mostContains')}
+                    disabled // Placeholder
+                />
+                <Label htmlFor="mostContains" className="font-normal text-muted-foreground">Most Contains (N/A)</Label>
+                </div>
+            </>
+        )}
       </div>
     </div>
   );

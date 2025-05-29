@@ -99,8 +99,8 @@ export default function CheckoutPage() {
           // For packs, map over selectedNumbers and get their 'originalVipId'
           // This 'originalVipId' MUST exist on each number object within the pack's data from Firestore
           console.log('Selected Numbers:', item.selectedNumbers);
-          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipId))
-          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipId).filter(id => id); // filter out undefined/null
+          console.log('Original VIP Number IDs:', item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId))
+          return item.selectedNumbers.map(selectedNum => selectedNum.originalVipNumberId).filter(id => id); // filter out undefined/null
         } else if (item.type === 'vipNumber') { // This 'type' is set by transformVipNumberData
           // For individual VIP numbers, item.id is its Firestore document ID.
           return [item.id];
