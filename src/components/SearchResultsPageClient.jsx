@@ -13,6 +13,9 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+// Removed NumberPackCard as it's no longer used in search-results
+// import NumberPackCard from '@/components/NumberPackCard';
+
 
 const ITEMS_PER_PAGE = 8;
 
@@ -23,9 +26,10 @@ const transformVipNumberData = (doc) => {
     ...data,
     price: parseFloat(data.price) || 0,
     originalPrice: data.originalPrice ? parseFloat(data.originalPrice) : undefined,
-    type: 'vipNumber'
+    type: 'vipNumber' // Ensuring type is set
   };
 };
+
 
 export default function SearchResultsPageClient() {
   const searchParamsHook = useSearchParams();
@@ -53,12 +57,13 @@ export default function SearchResultsPageClient() {
   const premiumSearch = searchParamsHook.get('premiumSearch') === 'true';
   const numerologySearch = searchParamsHook.get('numerologySearch') === 'true';
   const exactDigitPlacement = searchParamsHook.get('exactDigitPlacement') === 'true';
+  // const mostContains = searchParamsHook.get('mostContains') === 'true'; // Not currently used in filtering
 
   useEffect(() => {
     setIsLoading(true);
     setPage(1); 
 
-    // Only fetch vipNumbers as per the simplified search logic
+    // Search results page now only focuses on vipNumbers
     const itemsQuery = query(collection(db, "vipNumbers"), where("status", "==", "available"));
 
     const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
@@ -78,22 +83,18 @@ export default function SearchResultsPageClient() {
   }, [searchParamsHook.toString(), toast]); 
 
   useEffect(() => {
-    if (allFetchedItems.length === 0 && searchParamsHook.toString()) {
-      setIsLoading(false); 
+    if (allFetchedItems.length === 0 && !isLoading) { // Check isLoading to prevent premature empty state
       setFilteredItems([]);
       setDisplayedItems([]);
       setHasMore(false);
       return;
     }
-    if(allFetchedItems.length > 0) setIsLoading(true);
-
-
+    
     let results = [...allFetchedItems]; 
-
     const minPriceNum = minPriceParam ? parseFloat(minPriceParam) : null;
     const maxPriceNum = maxPriceParam ? parseFloat(maxPriceParam) : null;
 
-    if (searchType === 'price' && (minPriceNum !== null || maxPriceNum !== null)) {
+    if (searchType === 'price') {
       results = results.filter(item => {
         const price = item.price; 
         if (minPriceNum !== null && price < minPriceNum) return false;
@@ -102,17 +103,17 @@ export default function SearchResultsPageClient() {
       });
     }
     
-    if (searchTerm && searchType === 'digits') {
+    if (searchType === 'digits' && searchTerm.trim()) {
         results = results.filter(item => {
-            let matches = item.number.includes(searchTerm);
-            if (globalSearch && !matches) { 
-                matches = String(item.price).includes(searchTerm);
+            let matches = item.number.includes(searchTerm.trim());
+            if (globalSearch && !matches && String(item.price).includes(searchTerm.trim())) { 
+                matches = true;
             }
-            if (exactDigitPlacement && !matches && item.number.startsWith(searchTerm)) {
+            if (exactDigitPlacement && !matches && item.number.startsWith(searchTerm.trim())) {
                  matches = true;
             }
             if (numerologySearch && !matches) {
-                const numSearchTerm = parseInt(searchTerm);
+                const numSearchTerm = parseInt(searchTerm.trim());
                 if (!isNaN(numSearchTerm) && typeof item.sumOfDigits === 'number') {
                      matches = item.sumOfDigits === numSearchTerm;
                 }
@@ -130,14 +131,15 @@ export default function SearchResultsPageClient() {
     setHasMore(results.length > ITEMS_PER_PAGE * page);
     setIsLoading(false);
     
-  }, [searchParamsHook, allFetchedItems, page, minPriceParam, maxPriceParam, searchTerm, searchType, globalSearch, premiumSearch, numerologySearch, exactDigitPlacement]);
+  }, [searchParamsHook, allFetchedItems, page, minPriceParam, maxPriceParam, searchTerm, searchType, globalSearch, premiumSearch, numerologySearch, exactDigitPlacement, isLoading]);
 
 
   const loadMoreItems = useCallback(() => {
     if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
+    const nextPage = page + 1;
+    // Simulate network delay for loading more if needed, or remove setTimeout
     setTimeout(() => { 
-      const nextPage = page + 1;
       const newItems = filteredItems.slice(0, nextPage * ITEMS_PER_PAGE);
       setDisplayedItems(newItems);
       setPage(nextPage);
@@ -243,7 +245,7 @@ export default function SearchResultsPageClient() {
                 isFavorite={checkIsFavorite(item.id)}
               />
             ))}
-            {isLoadingMore && renderSkeletons(2)}
+            {isLoadingMore && renderSkeletons(2)} {/* Show skeletons when loading more */}
           </div>
           {hasMore && !isLoadingMore && (
             <div className="text-center mt-8">
@@ -252,7 +254,7 @@ export default function SearchResultsPageClient() {
               </Button>
             </div>
           )}
-           {!hasMore && filteredItems.length > ITEMS_PER_PAGE && (
+           {!hasMore && filteredItems.length > ITEMS_PER_PAGE && ( // Only show if there were enough items to paginate
              <p className="text-center text-muted-foreground text-sm mt-8">End of results.</p>
            )}
         </>
