@@ -30,7 +30,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
         <CardHeader className="p-0 relative">
           <div className="bg-primary/90 text-primary-foreground p-3 flex justify-between items-center">
             <span className="font-semibold text-sm">
-              {discount ? `Save ₹${discount}/-` : (originalPrice && originalPrice > price ? `Save ₹${originalPrice - price}/-` : 'Best Price')}
+              {discount ? `Save ₹${(discount / 100 * price).toFixed(2)}/-` : (originalPrice && originalPrice > price ? `Save ₹${originalPrice - price}/-` : 'Best Price')}
             </span>
             <div className="flex items-center space-x-1.5">
               {isVip && (
@@ -71,7 +71,7 @@ export default function VipNumberCard({ numberDetails, onBookNow, onAddToCart, o
         <CardContent className="p-4 text-center space-y-3 pt-5 flex-grow flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center text-xs text-muted-foreground">
-              <a href={similarNumbersLink} className="hover:underline hover:text-primary">Similar Numbers</a>
+            <p>Numerology-{sumOfDigits || 'N/A'}</p>
               <div className="text-right">
                 <p>Total-{totalDigits || 'N/A'}</p>
                 <p>Sum-{sumOfDigits || 'N/A'}</p>
