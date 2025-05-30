@@ -20,45 +20,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, limit, getDoc } from 'firebase/firestore'; // Added getDoc
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Dynamic metadata generation
-export async function generateMetadata({ params }) {
-  const slug = params?.slug;
-  let categoryTitle = "Category";
-  let description = `Browse VIP numbers and packs at NumbersGuru.`;
-
-  if (slug) {
-    try {
-      const categoryQuery = query(collection(db, "categories"), where("slug", "==", slug), limit(1));
-      const categorySnapshot = await getDocs(categoryQuery);
-      if (!categorySnapshot.empty) {
-        const categoryData = categorySnapshot.docs[0].data();
-        categoryTitle = categoryData.title || slug;
-        description = `Explore ${categoryTitle} VIP and fancy mobile numbers. Find unique Indian phone numbers in the ${categoryTitle} collection at NumbersGuru.`;
-      } else {
-        categoryTitle = `Category ${slug} not found`;
-        description = `The category you are looking for does not exist on NumbersGuru.`;
-      }
-    } catch (error) {
-      console.error("Error fetching category for metadata:", error);
-      categoryTitle = "Error loading category";
-      description = "Error loading category details for NumbersGuru.";
-    }
-  }
-
-  return {
-    title: `${categoryTitle}`, // Template in layout.jsx will add "| NumbersGuru"
-    description: description,
-    openGraph: {
-      title: `${categoryTitle} | NumbersGuru`,
-      description: description,
-    },
-    twitter: {
-      title: `${categoryTitle} | NumbersGuru`,
-      description: description,
-    },
-  };
-}
-
+// Dynamic metadata generation removed as per user request
 
 const transformVipNumberData = (doc) => {
   const data = doc.data();
@@ -80,13 +42,14 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId); 
+      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId);
       const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
       return {
         ...num,
         price: parseFloat(num.price) || 0,
         id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
-        status: currentStatus
+        status: currentStatus,
+        originalVipNumberId: num.originalVipNumberId // Ensure this is passed
       };
     }) : []
   };
@@ -119,11 +82,11 @@ export default function CategoryPage() {
   const [isLoadingVipNumbersGlobal, setIsLoadingVipNumbersGlobal] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [digitSearchTerm, setDigitSearchTerm] = useState('');
-  const [selectedPackQuantity, setSelectedPackQuantity] = useState(null); 
+  const [selectedPackQuantity, setSelectedPackQuantity] = useState(null);
 
   const slug = params?.slug;
   const categoryDisplayType = searchParams.get('type') === 'packs' ? 'pack' : 'individual';
-  const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2); 
+  const numQuantityOptions = Array.from({ length: 6 }, (_, i) => i + 2);
 
   useEffect(() => {
     setIsLoadingVipNumbersGlobal(true);
@@ -142,7 +105,7 @@ export default function CategoryPage() {
     if (slug) {
       setIsLoadingCategory(true);
       const q = query(collection(db, "categories"), where("slug", "==", slug), limit(1));
-      
+
       const unsubscribeCategory = onSnapshot(q, (querySnapshot) => {
         if (!querySnapshot.empty) {
           const categoryDoc = querySnapshot.docs[0];
@@ -173,18 +136,18 @@ export default function CategoryPage() {
 
       if (categoryDisplayType === 'pack') {
         itemsQuery = query(
-          collection(db, "numberPacks"), 
+          collection(db, "numberPacks"),
           where("categorySlug", "==", slug),
-          where("status", "==", "available") 
+          where("status", "==", "available")
         );
       } else {
         itemsQuery = query(
-          collection(db, "vipNumbers"), 
+          collection(db, "vipNumbers"),
           where("categorySlug", "==", slug),
           where("status", "==", "available")
         );
       }
-      
+
       const unsubscribeItems = onSnapshot(itemsQuery, (querySnapshot) => {
         let processedItems = [];
         if (categoryDisplayType === 'pack') {
@@ -261,7 +224,7 @@ export default function CategoryPage() {
 
   const handleAddToCart = useCallback((item) => {
     const itemName = item.type === 'pack' ? `${item.name} (Selection)` : item.number;
-    addToCart(item); 
+    addToCart(item);
     toast({
       title: "Added to Cart",
       description: `${itemName} has been added to your cart.`,
@@ -269,14 +232,14 @@ export default function CategoryPage() {
   }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    toggleFavorite(item); 
+    toggleFavorite(item);
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
 
   const renderSkeletons = (count) => (
     Array.from({ length: count }).map((_, index) => (
-      <VipNumberCardSkeleton key={`skeleton-${index}`} /> 
+      <VipNumberCardSkeleton key={`skeleton-${index}`} />
     ))
   );
 
@@ -293,7 +256,7 @@ export default function CategoryPage() {
       </div>
     );
   }
-  
+
   if (!categoryDetails && !isLoadingCategory) {
     return (
       <div className="text-center py-20">
@@ -303,7 +266,7 @@ export default function CategoryPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-8">
       <div>
@@ -355,11 +318,11 @@ export default function CategoryPage() {
           {displayedItems.map((item) => (
             item.type === 'pack' ? (
               <NumberPackCard
-                key={item.id + (item.selectedNumbers ? JSON.stringify(item.selectedNumbers.map(sn => sn.id)) : '')} 
+                key={item.id + (item.selectedNumbers ? JSON.stringify(item.selectedNumbers.map(sn => sn.id)) : '')}
                 packDetails={item}
                 onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
                 onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
-                onToggleFavorite={handleToggleFavorite} 
+                onToggleFavorite={handleToggleFavorite}
                 isFavorite={isFavorite(item.id)}
               />
             ) : (
@@ -379,7 +342,7 @@ export default function CategoryPage() {
             {isLoading ? "Loading items..." : `No ${categoryDisplayType === 'pack' ? 'packs' : 'VIP numbers'} found matching your criteria in this category.`}
           </p>
       )}
-      
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => { setIsLoginModalOpen(false); setPendingAction(null); }}
