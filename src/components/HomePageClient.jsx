@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import LoginModal from '@/components/LoginModal';
 import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { Phone, Star, CheckCircle, Award, Search } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, where, getDocs } from 'firebase/firestore';
 
@@ -34,16 +35,16 @@ const transformNumberPackData = (doc, allVipNumbersMap) => {
     totalOriginalPrice: data.totalOriginalPrice ? parseFloat(data.totalOriginalPrice) : undefined,
     type: 'pack',
     numbers: Array.isArray(data.numbers) ? data.numbers.map(num => {
-        const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId);
-        const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
-        // Ensure individual number prices are parsed as float
-        const individualPrice = parseFloat(num.price); 
-        return {
-            ...num,
-            price: isNaN(individualPrice) ? 0 : individualPrice, // Default to 0 if parsing fails
-            id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
-            status: currentStatus
-        };
+      const vipNumberDetails = allVipNumbersMap.get(num.originalVipNumberId);
+      const currentStatus = vipNumberDetails ? vipNumberDetails.status : 'unknown';
+      // Ensure individual number prices are parsed as float
+      const individualPrice = parseFloat(num.price);
+      return {
+        ...num,
+        price: isNaN(individualPrice) ? 0 : individualPrice, // Default to 0 if parsing fails
+        id: num.id || `num-${Math.random().toString(36).substr(2, 9)}`,
+        status: currentStatus
+      };
     }) : []
   };
 };
@@ -59,10 +60,10 @@ const transformCategoryData = (doc) => {
 export default function HomePageClient() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingVipNumbersGlobal, setIsLoadingVipNumbersGlobal] = useState(true);
-  const [isLoadingItems, setIsLoadingItems] = useState(true); 
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
   const [categoriesData, setCategoriesData] = useState([]);
-  const [allVipNumbers, setAllVipNumbers] = useState([]); 
-  
+  const [allVipNumbers, setAllVipNumbers] = useState([]);
+
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
@@ -86,7 +87,7 @@ export default function HomePageClient() {
   }, [toast]);
 
   useEffect(() => {
-    if (isLoadingVipNumbersGlobal) return; 
+    if (isLoadingVipNumbersGlobal) return;
 
     setIsLoadingCategories(true);
     setIsLoadingItems(true);
@@ -96,21 +97,21 @@ export default function HomePageClient() {
 
     const unsubscribeCategories = onSnapshot(categoriesQuery, async (querySnapshot) => {
       const fetchedCategories = querySnapshot.docs.map(transformCategoryData);
-      
+
       const itemPromises = fetchedCategories.map(async (category) => {
         let items = [];
         let itemsQuery;
         if (category.type === 'pack') {
           itemsQuery = query(
-            collection(db, "numberPacks"), 
+            collection(db, "numberPacks"),
             where("categorySlug", "==", category.slug),
-            where("status", "==", "available") 
+            where("status", "==", "available")
           );
           const packSnapshot = await getDocs(itemsQuery);
           items = packSnapshot.docs
             .map(doc => transformNumberPackData(doc, allVipNumbersMap))
             .filter(pack => pack.numbers.some(num => num.status === 'available'));
-        } else { 
+        } else {
           items = allVipNumbers.filter(
             num => num.categorySlug === category.slug && num.status === 'available'
           );
@@ -129,7 +130,7 @@ export default function HomePageClient() {
           variant: "destructive",
         });
         // Still set categories so the UI doesn't just hang on loading
-        setCategoriesData(fetchedCategories.map(cat => ({ ...cat, items: [] }))); 
+        setCategoriesData(fetchedCategories.map(cat => ({ ...cat, items: [] })));
       } finally {
         setIsLoadingCategories(false);
         setIsLoadingItems(false);
@@ -169,7 +170,7 @@ export default function HomePageClient() {
 
   const handleBookNow = useCallback((item) => {
     const itemName = item.type === 'pack' ? item.name : item.number;
-    addToCart(item); 
+    addToCart(item);
     toast({
       title: "Added to Cart",
       description: `${itemName} ${item.type === 'pack' ? '(selection)' : ''} has been added to your cart. Proceeding to checkout.`,
@@ -187,7 +188,7 @@ export default function HomePageClient() {
   }, [addToCart, toast]);
 
   const handleToggleFavorite = useCallback((item) => {
-    toggleFavorite(item); 
+    toggleFavorite(item);
     const itemName = item.type === 'pack' ? item.name : item.number;
     toast({ title: isFavorite(item.id) ? `Removed ${itemName} from Favorites` : `Added ${itemName} to Favorites` });
   }, [toggleFavorite, isFavorite, toast]);
@@ -196,6 +197,38 @@ export default function HomePageClient() {
 
   return (
     <div>
+      <section className="py-12 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-indigo-900 mb-4">Find Your Perfect Phone Number</h2>
+            <p className="text-lg md:text-xl text-gray-700 mb-6">Discover premium, memorable phone numbers that make a lasting impression</p>
+            <div className="flex flex-wrap justify-center gap-6 mb-8">
+              <div className="flex items-center text-indigo-700"><CheckCircle className="h-5 w-5 mr-2" />Verified Sellers</div>
+              <div className="flex items-center text-indigo-700"><Award className="h-5 w-5 mr-2" />Premium Selection</div>
+              <div className="flex items-center text-indigo-700"><Search className="h-5 w-5 mr-2" />Memorable Patterns</div>
+            </div>
+            <a href="#search" className="inline-block bg-teal-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-400 transition-all transform hover:scale-105 shadow-md">Find Your Number</a>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="mb-4"><Phone className="h-10 w-10 text-teal-500" /></div>
+              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Premium Numbers</h3>
+              <p className="text-gray-600">Discover truly exceptional numbers with repeating digits, sequential patterns, and symmetrical arrangements.</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="mb-4"><Star className="h-10 w-10 text-teal-500" /></div>
+              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Make an Impression</h3>
+              <p className="text-gray-600">Stand out with a number that's easy to remember and sets you apart from the crowd.</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
+              <div className="mb-4"><CheckCircle className="h-10 w-10 text-teal-500" /></div>
+              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Trusted Dealers</h3>
+              <p className="text-gray-600">All our numbers come from verified dealers with proven track records of legitimate service.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <h1 className="text-4xl font-bold mb-2 text-center">Discover Your VIP Number</h1>
       <p className="text-muted-foreground mb-6 text-center">
         Choose from a wide range of exclusive and fancy mobile numbers & packs.
@@ -203,7 +236,7 @@ export default function HomePageClient() {
 
       <SearchBar />
 
-      <div className="mt-8">
+      <div className="mt-8 mx-4">
         {overallLoading && categoriesData.length === 0 && (
           Array.from({ length: 3 }).map((_, index) => (
             <CategorySection
@@ -211,29 +244,29 @@ export default function HomePageClient() {
               title="Loading Category..."
               items={[]}
               isLoading={true}
-              categoryType="individual" 
+              categoryType="individual"
             />
           ))
         )}
         {!overallLoading && categoriesData.length === 0 && (
-            <p className="text-center py-10 text-muted-foreground">No categories or items found.</p>
+          <p className="text-center py-10 text-muted-foreground">No categories or items found.</p>
         )}
         {categoriesData.map((category) => (
-          (category.items && category.items.length > 0) || category.type !== 'pack' ? 
-          <CategorySection
-            key={category.id}
-            title={category.title}
-            slug={category.slug}
-            items={category.items || []}
-            isLoading={overallLoading && category.items === undefined} // Check if items for this specific category are loaded
-            categoryType={category.type || 'individual'}
-            onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
-            onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={(itemId) => isFavorite(itemId)}
-            cartItems={cartItems} 
-          />
-          : null 
+          (category.items && category.items.length > 0) || category.type !== 'pack' ?
+            <CategorySection
+              key={category.id}
+              title={category.title}
+              slug={category.slug}
+              items={category.items || []}
+              isLoading={overallLoading && category.items === undefined} // Check if items for this specific category are loaded
+              categoryType={category.type || 'individual'}
+              onBookNow={(itemData) => executeOrPromptLogin(handleBookNow, itemData)}
+              onAddToCart={(itemData) => executeOrPromptLogin(handleAddToCart, itemData)}
+              onToggleFavorite={handleToggleFavorite}
+              isFavorite={(itemId) => isFavorite(itemId)}
+              cartItems={cartItems}
+            />
+            : null
         ))}
       </div>
 
