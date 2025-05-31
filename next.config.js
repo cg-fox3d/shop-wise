@@ -4,7 +4,7 @@ const nextConfig = {
   async headers() {
     const cspHeader = `
         default-src 'self';
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com https://www.gstatic.com/feedback/ https://support.google.com;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com https://www.gstatic.com/feedback/ https://support.google.com https://checkout.razorpay.com;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         img-src 'self' data: https://picsum.photos https://www.google.com;
         font-src 'self' https://fonts.gstatic.com;
