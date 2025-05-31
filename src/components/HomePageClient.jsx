@@ -200,29 +200,29 @@ export default function HomePageClient() {
       <section className="py-12 md:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-indigo-900 mb-4">Find Your Perfect Phone Number</h2>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">Find Your Perfect Phone Number</h2>
             <p className="text-lg md:text-xl text-gray-700 mb-6">Discover premium, memorable phone numbers that make a lasting impression</p>
             <div className="flex flex-wrap justify-center gap-6 mb-8">
-              <div className="flex items-center text-indigo-700"><CheckCircle className="h-5 w-5 mr-2" />Verified Sellers</div>
-              <div className="flex items-center text-indigo-700"><Award className="h-5 w-5 mr-2" />Premium Selection</div>
-              <div className="flex items-center text-indigo-700"><Search className="h-5 w-5 mr-2" />Memorable Patterns</div>
+              <div className="flex items-center"><CheckCircle className="h-5 w-5 mr-2" />Verified Sellers</div>
+              <div className="flex items-center"><Award className="h-5 w-5 mr-2" />Premium Selection</div>
+              <div className="flex items-center"><Search className="h-5 w-5 mr-2" />Memorable Patterns</div>
             </div>
-            <a href="#search" className="inline-block bg-teal-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-amber-400 transition-all transform hover:scale-105 shadow-md">Find Your Number</a>
+            <a href="#search" className="inline-block text-gray px-6 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-md">Find Your Number</a>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="mb-4"><Phone className="h-10 w-10 text-teal-500" /></div>
-              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Premium Numbers</h3>
+              <div className="mb-4"><Phone className="h-10 w-10" /></div>
+              <h3 className="text-xl font-semibold mb-2">Premium Numbers</h3>
               <p className="text-gray-600">Discover truly exceptional numbers with repeating digits, sequential patterns, and symmetrical arrangements.</p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="mb-4"><Star className="h-10 w-10 text-teal-500" /></div>
-              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Make an Impression</h3>
+              <div className="mb-4"><Star className="h-10 w-10" /></div>
+              <h3 className="text-xl font-semibold mb-2">Make an Impression</h3>
               <p className="text-gray-600">Stand out with a number that's easy to remember and sets you apart from the crowd.</p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-              <div className="mb-4"><CheckCircle className="h-10 w-10 text-teal-500" /></div>
-              <h3 className="text-xl font-semibold text-indigo-900 mb-2">Trusted Dealers</h3>
+              <div className="mb-4"><CheckCircle className="h-10 w-10" /></div>
+              <h3 className="text-xl font-semibold mb-2">Trusted Dealers</h3>
               <p className="text-gray-600">All our numbers come from verified dealers with proven track records of legitimate service.</p>
             </div>
           </div>

@@ -4,6 +4,7 @@
  * @description A component to display a category of items with a title.
  * Items are displayed in a horizontally scrollable row with navigation arrows.
  * Can display individual VIP numbers or number packs.
+ * The section will not render if there are no items and it's not loading.
  */
 "use client";
 
@@ -37,6 +38,11 @@ export default function CategorySection({
   const [filteredDisplayItems, setFilteredDisplayItems] = useState([]);
 
   const safeItems = items || [];
+
+  // If not loading and there are no items for this category, don't render the section at all.
+  if (!isLoading && safeItems.length === 0) {
+    return null;
+  }
 
   useEffect(() => {
     let displayableItems = safeItems;
@@ -150,13 +156,16 @@ export default function CategorySection({
       >
         {isLoading ? renderSkeletons() : (filteredDisplayItems.length > 0 ? renderItems() :
           <p className="text-muted-foreground text-center py-4 w-full">
-            No {categoryType === 'pack' ? (selectedNumQuantity ? `packs with ${selectedNumQuantity} numbers` : 'packs') : 'items'} found in this category.
+            No {categoryType === 'pack' ? (selectedNumQuantity ? `packs with ${selectedNumQuantity} numbers` : 'packs') : 'items'} found matching your current filter.
           </p>
         )}
       </div>
+      {/* The following paragraph is removed as the component will return null if !isLoading && safeItems.length === 0 */}
+      {/* 
       {!isLoading && safeItems.length === 0 && (
          <p className="text-muted-foreground text-center py-4">No items in this category yet.</p>
       )}
+      */}
     </section>
   );
 }

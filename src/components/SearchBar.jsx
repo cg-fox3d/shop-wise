@@ -59,7 +59,7 @@ export default function SearchBar() {
   };
 
   return (
-    <div className="p-4 md:p-6 bg-card shadow-md rounded-lg w-[90%] sm:w-[80%] md:w-[70%] lg:w-[70%] mx-auto">
+    <div className="p-4 md:p-6 bg-card shadow-md rounded-lg w-[90%] sm:w-[80%] md:w-[70%] lg:w-[70%] mx-auto" id="search">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
         <Button
           variant={activeSearchType === 'digits' ? 'default' : 'outline'}
