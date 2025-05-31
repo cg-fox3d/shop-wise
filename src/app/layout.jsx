@@ -22,7 +22,7 @@ export const metadata = {
     template: '%s | NumbersGuru',
   },
   description: 'Discover and purchase exclusive VIP, fancy, and choice Indian mobile numbers at NumbersGuru. Secure your unique phone number today!',
-  keywords: ['VIP mobile numbers India', 'fancy numbers India', 'choice mobile numbers', 'buy Indian phone numbers', 'special phone numbers India', 'NumbersGuru', 'Indian VIP SIM', 'premium mobile numbers', 'numbers', 'phonenumbers'],
+  keywords: ['VIP mobile numbers India', 'fancy numbers India', 'choice mobile numbers', 'buy Indian phone numbers', 'special phone numbers India', 'NumbersGuru', 'Indian VIP SIM', 'premium mobile numbers', 'numbers', 'phonenumbers', 'buy phone numbers India', 'premium phone numbers India', 'fancy numbers India', 'memorable phone numbers', 'buy Indian mobile numbers', 'verified phone numbers India', 'exclusive mobile numbers India', 'NumberGuru India', 'Indian phone numbers online', 'VIP mobile numbers India', 'unique phone numbers India', 'mobile number marketplace India'],
   robots: {
     index: true,
     follow: true,
