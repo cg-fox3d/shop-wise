@@ -3,19 +3,15 @@ const nextConfig = {
   reactStrictMode: true, // Recommended for Next.js
   async headers() {
     const cspHeader = `
-      default-src 'self';
-      script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com;
-      style-src 'self' 'unsafe-inline';
-      img-src 'self' data: https://placehold.co;
-      font-src 'self';
-      connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.razorpay.com https://lumberjack-events.razorpay.com https://numbers-guru.netlify.app;
-      frame-src 'self' https://checkout.razorpay.com;
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      frame-ancestors 'self';
-      upgrade-insecure-requests;
-    `.replace(/\s{2,}/g, ' ').trim(); // Remove unnecessary whitespace and newlines
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com https://www.gstatic.com/feedback/ https://support.google.com;
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        img-src 'self' data: https://picsum.photos https://www.google.com;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' https://firestore.googleapis.com https://*.firebaseio.com https://firebase.googleapis.com https://www.googleapis.com https://www.gstatic.com;
+        object-src 'none';
+        frame-ancestors 'none';
+      `.replace(/\s{2,}/g, ' ').trim();// Remove unnecessary whitespace and newlines
 
     return [
       {
